@@ -2,6 +2,7 @@ package me.phh.uxperiments
 
 import android.content.Context
 import android.graphics.Rect
+import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.widget.GridLayout
@@ -10,6 +11,7 @@ import android.widget.LinearLayout
 interface SelectorView  {
     fun getOverlayView(): View
     fun updateDiscussion(d: Discussion)
+    fun onSelected()
 }
 
 class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout(context) {
@@ -18,32 +20,62 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
     }
 
     var currentSelected: SelectorView? = null
+    var wasOnBar = false
+    var hasMoved = false
+    var startedGesture = false
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val r = Rect()
 
         if(ev.action == MotionEvent.ACTION_UP) {
+            startedGesture = false
+        }
+
+        if(ev.action == MotionEvent.ACTION_UP && wasOnBar && hasMoved) {
+            wasOnBar = false
             currentSelected = null
+            container.removeAllViews()
             return true
         }
 
         for(touchable in touchables) {
             touchable.getHitRect(r)
-            if(ev.x >= r.left &&
-                    ev.x <= r.right &&
-                    ev.y >= r.top &&
-                    ev.y <= bottom) {
-
+            val isInX = ev.x >= r.left && ev.x <= r.right
+            val isInY = ev.y >= r.top && ev.y <= bottom
+            val isDownOrMoving = ev.action == MotionEvent.ACTION_DOWN || ev.action == MotionEvent.ACTION_MOVE
+            if(isInX && isInY && isDownOrMoving &&!startedGesture) {
+                wasOnBar = true
+                hasMoved = hasMoved || ev.action == MotionEvent.ACTION_MOVE
                 if(touchable is SelectorView) {
                     if(currentSelected == touchable) {
-                        return super.dispatchTouchEvent(ev)
+                        return true
                     }
+
                     currentSelected = touchable
                     val v = touchable.getOverlayView()
                     container.removeAllViews()
                     container.addView(v)
+                    return true
                 }
-                return super.dispatchTouchEvent(ev)
+                return true
+            }
+
+            //Swiping up from bar
+            if(isInX && wasOnBar && ev.action == MotionEvent.ACTION_MOVE && ev.y < bottom) {
+                l("Swiped up")
+                startedGesture = true
+
+                val fakeEvent = MotionEvent.obtain(
+                        SystemClock.uptimeMillis(),
+                        SystemClock.uptimeMillis(),
+                        MotionEvent.ACTION_DOWN,
+                        (r.left + r.right) / 2f,
+                        (r.top + r.bottom) /2f,
+                        0
+                )
+                currentSelected?.onSelected()
+                super.dispatchTouchEvent(fakeEvent)
+                wasOnBar = false
             }
         }
         return super.dispatchTouchEvent(ev)

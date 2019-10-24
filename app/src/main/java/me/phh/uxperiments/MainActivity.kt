@@ -109,6 +109,9 @@ class MainActivity : Activity() {
 
         grid.addView(
                 object: ImageView(this), SelectorView {
+                    override fun onSelected() {
+                    }
+
                     val overlayView = object: View(context) {
                     }
 
@@ -120,11 +123,11 @@ class MainActivity : Activity() {
                     }
 
                     override fun onTouchEvent(event: MotionEvent): Boolean {
+                        if(event.action != MotionEvent.ACTION_MOVE && brightnessControl.active) {
+                            brightnessControl.active = false
+                            return true
+                        }
                         if(brightnessControl.active) {
-                            if(event.action == MotionEvent.ACTION_UP) {
-                                brightnessControl.active = false
-                            }
-
                             if(brightnessControl.startX == -1.0f) {
                                 brightnessControl.startX = event.x
                                 brightnessControl.startY = event.y
