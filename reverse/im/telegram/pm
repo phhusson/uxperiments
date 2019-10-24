@@ -1,0 +1,124 @@
+First message:
+Got notification Notification(channel=0channel505442206_-8277212450901348895 pri=0 contentView=null vibrate=null sound=null defaults=0x0 flags=0x10 color=0xff11acfa category=msg sortKey=9223370465467403807 actions=2 vis=PRIVATE)
+	bigContentView null, contentView null, headsUpContentView null
+	ticker 'null'
+	contentIntent PendingIntent{463ad48: android.os.BinderProxy@518775c} deleteIntent PendingIntent{aece7e1: android.os.BinderProxy@e41beb} fullScreenIntent null
+	Actions:
+		action = 1 PendingIntent{e8b7906: android.os.BinderProxy@2ea633a} [Landroid.app.RemoteInput;@e68bc7
+			android.app.RemoteInput@3aa55f4
+		action = 2 PendingIntent{46f211d: android.os.BinderProxy@cf10a65} null
+	Extras:
+		- android.title => Phh
+		- android.hiddenConversationTitle => null
+		- android.reduced.images => true
+		- android.subText => null
+		- android.template => android.app.Notification$MessagingStyle
+		- android.showChronometer => false
+		- android.people.list => [android.app.Person@1491890b]
+		- android.text => Oui
+		- android.progress => 0
+		- android.progressMax => 0
+		- android.selfDisplayName => 
+		- android.appInfo => ApplicationInfo{8d61f92 org.telegram.messenger}
+		- android.messages => [Landroid.os.Parcelable;@db61d63
+		- android.showWhen => true
+		- android.largeIcon => null
+		- android.messagingStyleUser => Bundle[mParcelledData.dataSize=144]
+		- android.messagingUser => android.app.Person@34e6d5e1
+		- android.infoText => null
+		- android.wearable.EXTENSIONS => Bundle[mParcelledData.dataSize=544]
+		- android.progressIndeterminate => false
+		- android.remoteInputHistory => null
+		- android.isGroupConversation => false
+	Content Intent:
+people type is class java.util.ArrayList
+Person
+	- key: null
+	- name: null
+	- uri: tel:+33123456789
+	- bot: false
+	- important: false
+Wearable - dismissalId tguser505442206_27
+Wearable - actions [android.app.Notification$Action@110dd60]
+Wearable - bridgeTag tgaccount947380224
+Got message Bundle[mParcelledData.dataSize=244]
+	extras Bundle[EMPTY_PARCEL]
+	sender_person android.app.Person@da44ee91
+	sender Phh
+	text Oui
+	time 1571387372000
+Got person android.app.Person@34e6d5e1
+Person
+	- key: null
+	- name: 
+	- uri: null
+	- bot: false
+	- important: false
+Got event 2048
+	package src = com.android.launcher3
+	src class = android.widget.TextView
+
+
+Second message:
+Got notification Notification(channel=0channel505442206_-8277212450901348895 pri=0 contentView=null vibrate=null sound=null defaults=0x0 flags=0x10 color=0xff11acfa category=msg sortKey=9223370465467358807 actions=2 vis=PRIVATE)
+	bigContentView null, contentView null, headsUpContentView null
+	ticker 'null'
+	contentIntent PendingIntent{fb2a2de: android.os.BinderProxy@fe1b219} deleteIntent PendingIntent{2632cbf: android.os.BinderProxy@e41beb} fullScreenIntent null
+	Actions:
+		action = 1 PendingIntent{6966f8c: android.os.BinderProxy@2ea633a} [Landroid.app.RemoteInput;@65256d5
+			android.app.RemoteInput@5420eea
+		action = 2 PendingIntent{a7d5db: android.os.BinderProxy@cf10a65} null
+	Extras:
+		- android.title => Phh
+		- android.hiddenConversationTitle => null
+		- android.reduced.images => true
+		- android.subText => null
+		- android.template => android.app.Notification$MessagingStyle
+		- android.showChronometer => false
+		- android.people.list => [android.app.Person@1491890b]
+		- android.text => Non
+		- android.progress => 0
+		- android.progressMax => 0
+		- android.selfDisplayName => 
+		- android.appInfo => ApplicationInfo{d00f878 org.telegram.messenger}
+		- android.messages => [Landroid.os.Parcelable;@9ee8b51
+		- android.showWhen => true
+		- android.largeIcon => null
+		- android.messagingStyleUser => Bundle[mParcelledData.dataSize=144]
+		- android.messagingUser => android.app.Person@34e6d5e1
+		- android.infoText => null
+		- android.wearable.EXTENSIONS => Bundle[mParcelledData.dataSize=544]
+		- android.progressIndeterminate => false
+		- android.remoteInputHistory => null
+		- android.isGroupConversation => false
+	Content Intent:
+people type is class java.util.ArrayList
+Person
+	- key: null
+	- name: null
+	- uri: tel:+33123456789
+	- bot: false
+	- important: false
+Wearable - dismissalId tguser505442206_28
+Wearable - actions [android.app.Notification$Action@aaa2fb6]
+Wearable - bridgeTag tgaccount947380224
+Got message Bundle[mParcelledData.dataSize=244]
+	extras Bundle[EMPTY_PARCEL]
+	sender_person android.app.Person@da44ee91
+	sender Phh
+	text Oui
+	time 1571387372000
+Got message Bundle[mParcelledData.dataSize=244]
+	extras Bundle[EMPTY_PARCEL]
+	sender_person android.app.Person@da44ee91
+	sender Phh
+	text Non
+	time 1571387417000
+Got person android.app.Person@34e6d5e1
+Person
+	- key: null
+	- name: 
+	- uri: null
+	- bot: false
+	- important: false
+

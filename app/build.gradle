@@ -1,0 +1,24 @@
+apply plugin: 'com.android.application'
+
+apply plugin: 'kotlin-android'
+
+apply plugin: 'kotlin-android-extensions'
+
+android {
+    compileSdkVersion 28
+    defaultConfig {
+        applicationId "me.phh.uxperiments"
+        minSdkVersion 28    
+        versionCode 1
+        versionName "1.0"
+        targetSdkVersion 28
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+
+    // Unit testing dependencies.
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.mockito:mockito-core:2.8.9'
+}
