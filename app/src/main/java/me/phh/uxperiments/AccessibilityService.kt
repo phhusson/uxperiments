@@ -14,7 +14,9 @@ import android.os.Handler
 import android.os.HandlerThread
 
 import android.accessibilityservice.AccessibilityService
+import android.app.ActionBar
 import android.app.NotificationManager
+import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -22,8 +24,10 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.hardware.display.DisplayManager
 
 import android.hardware.display.VirtualDisplay
+import android.view.Gravity
 
 import android.view.Surface
+import android.view.WindowManager
 
 data class Person(val nick: String, val uri: String?)
 data class Message(val msg: String, val me: Boolean)
@@ -423,17 +427,44 @@ class Accessibility : AccessibilityService() {
 
 
 class NotificationService : NotificationListenerService() {
-    fun l(s: String) {
-        android.util.Log.d("PHH-UX", s)
+    lateinit var rootLayout : Bar
+    lateinit var mParams: WindowManager.LayoutParams
+    lateinit var wm: WindowManager
+    var inited = false
+
+    fun initBar() {
+        l("Adding phh-ux view plane")
+        wm = getSystemService(WindowManager::class.java)!!
+        if(inited) return
+        inited = true
+
+        rootLayout = Bar(this, includePopup = false)
+
+        mParams = WindowManager.LayoutParams()
+        mParams.width = WindowManager.LayoutParams.MATCH_PARENT
+        mParams.height = WindowManager.LayoutParams.WRAP_CONTENT
+        mParams.flags = mParams.flags or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+
+        mParams.type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
+
+        mParams.gravity = Gravity.BOTTOM
+        mParams.title = "phh-ux"
+
+        wm.addView(rootLayout, mParams)
+
+        mParams.title = "phh-ux-overlay"
+        mParams.gravity = Gravity.BOTTOM
+        mParams.y = rootLayout.barHeight
+        wm.addView(rootLayout.popupContainer, mParams)
     }
 
-    fun l(s: String, t: Throwable) {
-        android.util.Log.d("PHH-UX", s, t)
-    }
     override fun onListenerConnected() {
         l("onListenerConnected")
-        requestListenerHints(HINT_HOST_DISABLE_NOTIFICATION_EFFECTS)
+        initBar()
+        //requestListenerHints(HINT_HOST_DISABLE_NOTIFICATION_EFFECTS)
 
+        // Retrieve notifications that are already displayed
         val nm = getSystemService(NotificationManager::class.java)
         nm.getActiveNotifications() // Useless call, so that NotificationManager fetches sService
         val serviceField = NotificationManager::class.java.getDeclaredField("sService")

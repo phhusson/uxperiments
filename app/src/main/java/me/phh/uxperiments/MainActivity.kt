@@ -21,39 +21,56 @@ fun l(s: String, t: Throwable) {
     android.util.Log.d("PHH-UX", s, t)
     }
 
-class MainActivity : Activity() {
-    lateinit var grid: SelectorGrid
-    lateinit var rootLayout: LinearLayout
-    lateinit var popupContainer: LinearLayout
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context) {
+    val grid: SelectorGrid
+    val popupContainer: LinearLayout
+    val discussionOverlays = mutableMapOf<DiscussionId, SelectorView>()
 
-        popupContainer = LinearLayout(this)
-        popupContainer.addView(
-                TextView(this).also {
-                    it.text="HELLO"
-                    it.textSize=40.0f
-                    it.setTextColor(Color.LTGRAY)
-                })
+    val barHeight = (50 * resources.displayMetrics.density).toInt()
+    init {
+        popupContainer = LinearLayout(context)
 
-        grid = SelectorGrid(this, popupContainer).also {
+        grid = SelectorGrid(context, popupContainer).also {
             it.orientation = LinearLayout.HORIZONTAL
-            //it.rowCount = 1
-            //it.columnCount = 10
-            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (50 * resources.displayMetrics.density).toInt()).also { it.gravity = Gravity.BOTTOM }
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, barHeight).also { it.gravity = Gravity.BOTTOM }
             it.setBackgroundColor(Color.BLACK)
-            //it.useDefaultMargins = true
         }
 
-        rootLayout = LinearLayout(this).also {
-            it.orientation = LinearLayout.VERTICAL
-            it.gravity = Gravity.BOTTOM
-            it.addView(popupContainer)
-            it.addView(grid)
-        }
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.BOTTOM
+        if(includePopup) addView(popupContainer)
+        addView(grid)
+        updateViews()
+        Discussions.registerListener(object: Discussions.Listener {
+            override fun onUpdated(did: DiscussionId) {
+                updateViews()
+            }
+        })
 
-        setContentView(rootLayout)
+        setOnFocusChangeListener(object: OnFocusChangeListener {
+            override fun onFocusChange(v: View?, hasFocus: Boolean) {
+                l("Focus change $v $hasFocus")
+            }
+        })
     }
+
+    override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
+        l("Got key event preime ${event.action} ${event.keyCode}")
+        return super.dispatchKeyEventPreIme(event)
+    }
+
+    override fun dispatchWindowFocusChanged(hasFocus: Boolean) {
+        l("Window focus changed $hasFocus")
+        super.dispatchWindowFocusChanged(hasFocus)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        l("dispatch touch even ${ev.action} ${ev.x} ${ev.y} ${height}")
+        l("\t${animation?.hasStarted()} ${animation?.hasEnded()}")
+
+        return super.dispatchTouchEvent(ev)
+    }
+
 
     object brightnessControl {
         var active = false
@@ -70,16 +87,6 @@ class MainActivity : Activity() {
     }
 
     val attentionScale = 0.6f
-    val discussionOverlays = mutableMapOf<DiscussionId, SelectorView>()
-    override fun onResume() {
-        super.onResume()
-        updateViews()
-        Discussions.registerListener(object: Discussions.Listener {
-            override fun onUpdated(did: DiscussionId) {
-                updateViews()
-            }
-        })
-    }
 
     fun updateViews() {
         grid.removeAllViews()
@@ -91,28 +98,31 @@ class MainActivity : Activity() {
                 v = discussionOverlays[did]
                 v!!.updateDiscussion(discussion)
             } else {
-                v = DiscussionOverlay(discussion, did, this)
+                v = DiscussionOverlay(discussion, did, context)
                 discussionOverlays[did] = v
             }
             grid.addView(v as View)
         }
 
-        grid.addView(Space(this).also {
+        grid.addView(Space(context).also {
             it.layoutParams =
                     LinearLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
+                            ViewGroup.LayoutParams.MATCH_PARENT
                     ).also {
                         it.weight = 0.1f
                     }
         })
 
         grid.addView(
-                object: ImageView(this), SelectorView {
+                object: ImageView(context), SelectorView {
                     override fun onSelected() {
                     }
 
                     val overlayView = object: View(context) {
+                        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                            setMeasuredDimension(0, 0)
+                        }
                     }
 
                     override fun getOverlayView(): View {
@@ -138,12 +148,12 @@ class MainActivity : Activity() {
 
                                 val brightness = max(min(brightnessControl.startBrightness + (dx+dy), 255.0f),0.0f)
                                 l("Setting brightness to $brightness")
-                                Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, brightness.toInt())
+                                Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, brightness.toInt())
                             }
                             return true
                         }
                         if(event.action == MotionEvent.ACTION_DOWN) {
-                            brightnessControl.start(this@MainActivity)
+                            brightnessControl.start(context)
                             return true
                         }
                         return true
@@ -163,20 +173,38 @@ class MainActivity : Activity() {
                     it.scaleType = ImageView.ScaleType.FIT_XY
                     it.layoutParams = GridLayout.LayoutParams(
                             ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                                )
+                                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                     ).also {
                         it.rowSpec = GridLayout.spec(0)
                         it.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, GridLayout.END)
                         it.setGravity(Gravity.RIGHT or Gravity.FILL)
                     }
                     it.setOnClickListener {
-                        brightnessControl.start(this)
+                        brightnessControl.start(context)
                     }
                 }
         )
 
     }
 
+}
+
+class MainActivity : Activity() {
+
+    lateinit var rootLayout: Bar
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        rootLayout = Bar(this)
+
+        setContentView(rootLayout)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        rootLayout.updateViews()
+    }
 }

@@ -3,6 +3,7 @@ package me.phh.uxperiments
 import android.content.Context
 import android.graphics.Rect
 import android.os.SystemClock
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.widget.GridLayout
@@ -61,7 +62,7 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
             }
 
             //Swiping up from bar
-            if(isInX && wasOnBar && ev.action == MotionEvent.ACTION_MOVE && ev.y < bottom) {
+            if(isInX && wasOnBar && ev.action == MotionEvent.ACTION_MOVE && ev.y < (top-60)) {
                 l("Swiped up")
                 startedGesture = true
 
@@ -69,8 +70,8 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
                         SystemClock.uptimeMillis(),
                         SystemClock.uptimeMillis(),
                         MotionEvent.ACTION_DOWN,
-                        (r.left + r.right) / 2f,
-                        (r.top + r.bottom) /2f,
+                        (r.left + r.right)/2f,
+                        (r.top + r.bottom)/2f,
                         0
                 )
                 currentSelected?.onSelected()
