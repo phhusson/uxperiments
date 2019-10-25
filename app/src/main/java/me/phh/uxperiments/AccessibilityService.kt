@@ -14,9 +14,7 @@ import android.os.Handler
 import android.os.HandlerThread
 
 import android.accessibilityservice.AccessibilityService
-import android.app.ActionBar
 import android.app.NotificationManager
-import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -91,8 +89,10 @@ class Accessibility : AccessibilityService() {
             var uri: String? = null
             var nick: String? = null
 
-            if(peopleList != null)
-                    uri = (peopleList as java.util.ArrayList<android.app.Person>)[0].uri!!
+            if(peopleList != null) {
+                uri = (peopleList as java.util.ArrayList<android.app.Person>).firstOrNull()?.uri
+                if(uri == null) uri = peopleList.firstOrNull()?.key
+            }
 
             val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
             val messagesBundle =
@@ -103,6 +103,7 @@ class Accessibility : AccessibilityService() {
             if(senderPerson != null) {
                 if(nick == null) nick = senderPerson.name.toString()
                 if(uri == null) uri = senderPerson.uri
+                if(uri == null) uri = senderPerson.key
             }
 
             val messages = messagesBundle.map {
@@ -132,8 +133,41 @@ class Accessibility : AccessibilityService() {
             d.persons = p
             d.replyAction = replyAction
 
-            val did = DiscussionId("org.telegram.messenger", d)
-            l("This makes $d")
+            val did = DiscussionId(pkgName, d)
+            Discussions.merge(did, d)
+        }
+
+        fun onSimpleGroupNotification(pkgName: String, n: Notification) {
+            val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
+            val messagesBundle =
+                    java.util.Arrays.asList(*messagesBundleArray as Array<Parcelable>).map { it as Bundle }
+
+            var uniqueId = n.extras.get("android.hiddenConversationTitle") as? CharSequence
+            if(uniqueId == null) uniqueId = n.extras.get("android.conversationTitle") as? CharSequence
+
+            val messages = messagesBundle.map {
+                Message(
+                        (it.get("text") as java.lang.CharSequence).toString(),
+                        false
+                )
+            }
+            l("Got $uniqueId : ${messages.joinToString(", ")}")
+
+            if(uniqueId == null) return
+            val actions = n.actions ?: emptyArray()
+            var replyAction = actions.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY }
+            if(replyAction == null) {
+                replyAction = actions.find { it.remoteInputs != null && it.remoteInputs.isNotEmpty() }
+            }
+
+
+            val d = Discussion()
+            d.isGroup = false
+            d.messages = messages
+            d.persons = emptyList()
+            d.replyAction = replyAction
+
+            val did = DiscussionId(pkgName, Person(nick = uniqueId.toString(), uri = null))
             Discussions.merge(did, d)
         }
 
@@ -153,6 +187,7 @@ class Accessibility : AccessibilityService() {
             val extras = n.extras ?: Bundle()
             val isGroup = n.extras.get("android.isGroupConversation") as? Boolean ?: false
             if(isGroup) {
+                onSimpleGroupNotification("com.iskrembilen.quasseldroid", n)
             } else {
                 onSimpleMessageNotification("com.iskrembilen.quasseldroid", n)
             }
@@ -161,6 +196,7 @@ class Accessibility : AccessibilityService() {
         fun handleNotification(pkgName: String, n: Notification) {
             if(pkgName == "org.telegram.messenger") onTelegramNotification(n)
             if(pkgName == "com.iskrembilen.quasseldroid") onQuasselNotification(n)
+
             l("Got notification $n from $pkgName")
             l("\tbigContentView ${n.bigContentView}, contentView ${n.contentView}, headsUpContentView ${n.headsUpContentView}")
             l("\tticker '${n.tickerText}'")
@@ -190,15 +226,6 @@ class Accessibility : AccessibilityService() {
                         }
                     }
                 }
-            }
-            if(pkgName == PKG_GMAIL) {
-                val mailContent = extras?.get("android.bigText")
-
-                val srcName = extras?.get("android.title")
-                val srcAddr = extras?.get("android.subText")
-            }
-            if(pkgName == PKG_WHATSAPP) {
-                val poster = extras?.get("android.title")
             }
 
             val wearable = extras?.get("android.wearable.EXTENSIONS")
@@ -427,36 +454,48 @@ class Accessibility : AccessibilityService() {
 
 
 class NotificationService : NotificationListenerService() {
-    lateinit var rootLayout : Bar
-    lateinit var mParams: WindowManager.LayoutParams
-    lateinit var wm: WindowManager
-    var inited = false
+    companion object {
+        val popupParams = WindowManager.LayoutParams().apply {
+            width = WindowManager.LayoutParams.MATCH_PARENT
+            height = WindowManager.LayoutParams.WRAP_CONTENT
+            flags =
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
 
+            type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
+            gravity = Gravity.BOTTOM
+            title = "phh-ux-overlay"
+        }
+        var inited = false
+    }
+
+    lateinit var rootLayout : Bar
+    lateinit var wm: WindowManager
     fun initBar() {
-        l("Adding phh-ux view plane")
-        wm = getSystemService(WindowManager::class.java)!!
+        l("Adding phh-ux view plane ${inited}")
         if(inited) return
+
+        wm = getSystemService(WindowManager::class.java)!!
         inited = true
 
         rootLayout = Bar(this, includePopup = false)
 
-        mParams = WindowManager.LayoutParams()
-        mParams.width = WindowManager.LayoutParams.MATCH_PARENT
-        mParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-        mParams.flags = mParams.flags or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        val params = WindowManager.LayoutParams()
+        params.width = WindowManager.LayoutParams.MATCH_PARENT
+        params.height = WindowManager.LayoutParams.WRAP_CONTENT
+        params.flags =
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
 
-        mParams.type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
+        params.type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
 
-        mParams.gravity = Gravity.BOTTOM
-        mParams.title = "phh-ux"
+        params.gravity = Gravity.BOTTOM
+        params.title = "phh-ux"
 
-        wm.addView(rootLayout, mParams)
+        wm.addView(rootLayout, params)
 
-        mParams.title = "phh-ux-overlay"
-        mParams.gravity = Gravity.BOTTOM
-        mParams.y = rootLayout.barHeight
-        wm.addView(rootLayout.popupContainer, mParams)
+        popupParams.y = rootLayout.barHeight
+        wm.addView(rootLayout.popupContainer, popupParams)
     }
 
     override fun onListenerConnected() {

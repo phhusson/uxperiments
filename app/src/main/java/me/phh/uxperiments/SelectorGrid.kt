@@ -10,7 +10,7 @@ import android.widget.GridLayout
 import android.widget.LinearLayout
 
 interface SelectorView  {
-    fun getOverlayView(): View
+    fun getOverlayView(): View?
     fun updateDiscussion(d: Discussion)
     fun onSelected()
 }
@@ -24,6 +24,10 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
     var wasOnBar = false
     var hasMoved = false
     var startedGesture = false
+
+    init {
+        isFocusable = false
+    }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val r = Rect()
@@ -55,7 +59,9 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
                     currentSelected = touchable
                     val v = touchable.getOverlayView()
                     container.removeAllViews()
-                    container.addView(v)
+                    if(v != null) {
+                        container.addView(v)
+                    }
                     return true
                 }
                 return true
