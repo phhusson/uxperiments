@@ -18,7 +18,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
     val popupContainer: LinearLayout
     val discussionOverlays = mutableMapOf<DiscussionId, SelectorView>()
 
-    val barHeight = (50 * resources.displayMetrics.density).toInt()
+    val barHeight = (30 * resources.displayMetrics.density).toInt()
     init {
         popupContainer = object: LinearLayout(context) {
             val wm = context.getSystemService(WindowManager::class.java)

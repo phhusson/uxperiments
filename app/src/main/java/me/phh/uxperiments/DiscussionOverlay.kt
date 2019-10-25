@@ -55,7 +55,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         )
-        setBackgroundColor(scaleColor(mainColor, 0.1f))
+        setBackgroundColor(scaleColor(mainColor, 0.4f))
 
         addView(TextView(context).apply {
             text = did.person.nick

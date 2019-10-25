@@ -83,11 +83,11 @@ class Accessibility : AccessibilityService() {
             l("\t- important: ${p.isImportant()}")
         }
 
-        fun onSimpleMessageNotification(pkgName: String, n: Notification) {
+        fun onSimpleMessageNotification(pkgName: String, n: Notification, givenUri: String? = null, givenNick: String? = null) {
             // Direct private message
             val peopleList = n.extras.get("android.people.list")
-            var uri: String? = null
-            var nick: String? = null
+            var uri: String? = givenUri
+            var nick: String? = givenNick
 
             if(peopleList != null) {
                 uri = (peopleList as java.util.ArrayList<android.app.Person>).firstOrNull()?.uri
@@ -98,7 +98,7 @@ class Accessibility : AccessibilityService() {
             val messagesBundle =
                     java.util.Arrays.asList(*messagesBundleArray as Array<Parcelable>).map { it as Bundle }
 
-            nick = messagesBundle.map { (it.get("sender") as? java.lang.CharSequence).toString()}.firstOrNull()
+            if(nick == null) nick = messagesBundle.map { (it.get("sender") as? java.lang.CharSequence).toString()}.firstOrNull()
             val senderPerson = messagesBundle.map { (it.get("sender_person") as? android.app.Person)}.firstOrNull()
             if(senderPerson != null) {
                 if(nick == null) nick = senderPerson.name.toString()
@@ -137,6 +137,26 @@ class Accessibility : AccessibilityService() {
             Discussions.merge(did, d)
         }
 
+        fun getReplyAction(n: Notification): Notification.Action? {
+            val extras = n.extras ?: Bundle()
+            val actions = n.actions
+            var replyAction = actions?.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY }
+            if(replyAction == null) {
+                replyAction = actions?.find { it.remoteInputs != null && it.remoteInputs.isNotEmpty() }
+            }
+
+            val wearable = extras.get("android.wearable.EXTENSIONS") as? Bundle
+            val wearableActions = wearable?.get("actions") as? java.util.ArrayList<Notification.Action>
+            if(replyAction == null && wearableActions != null) {
+                replyAction = wearableActions.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY }
+                if(replyAction == null) {
+                    replyAction = wearableActions.find { it.remoteInputs != null && it.remoteInputs.isNotEmpty() }
+                }
+            }
+
+            return replyAction
+        }
+
         fun onSimpleGroupNotification(pkgName: String, n: Notification) {
             val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
             val messagesBundle =
@@ -154,12 +174,8 @@ class Accessibility : AccessibilityService() {
             l("Got $uniqueId : ${messages.joinToString(", ")}")
 
             if(uniqueId == null) return
-            val actions = n.actions ?: emptyArray()
-            var replyAction = actions.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY }
-            if(replyAction == null) {
-                replyAction = actions.find { it.remoteInputs != null && it.remoteInputs.isNotEmpty() }
-            }
 
+            val replyAction = getReplyAction(n)
 
             val d = Discussion()
             d.isGroup = false
@@ -168,6 +184,22 @@ class Accessibility : AccessibilityService() {
             d.replyAction = replyAction
 
             val did = DiscussionId(pkgName, Person(nick = uniqueId.toString(), uri = null))
+            Discussions.merge(did, d)
+        }
+
+        fun onSmsNotification(n: Notification) {
+            val phoneNumber = n.extras.get("android.title") as? CharSequence ?: return
+            val messages = n.extras.get("android.bigText") as? CharSequence ?: return
+            val replyAction = getReplyAction(n)
+
+
+            val d = Discussion()
+            d.isGroup = false
+            d.messages = messages.split("\n").toList().map { Message(it, false) }
+            d.persons = emptyList()
+            d.replyAction = replyAction
+
+            val did = DiscussionId("com.android.messaging", Person(nick = phoneNumber.toString(), uri = null))
             Discussions.merge(did, d)
         }
 
@@ -196,6 +228,7 @@ class Accessibility : AccessibilityService() {
         fun handleNotification(pkgName: String, n: Notification) {
             if(pkgName == "org.telegram.messenger") onTelegramNotification(n)
             if(pkgName == "com.iskrembilen.quasseldroid") onQuasselNotification(n)
+            if(pkgName == "com.android.messaging") onSmsNotification(n)
 
             l("Got notification $n from $pkgName")
             l("\tbigContentView ${n.bigContentView}, contentView ${n.contentView}, headsUpContentView ${n.headsUpContentView}")
@@ -232,6 +265,14 @@ class Accessibility : AccessibilityService() {
             if(wearable != null) {
                 for(key in (wearable as Bundle).keySet()) {
                     l("Wearable - $key ${wearable.get(key)}")
+                }
+                val actions = wearable?.get("actions") as java.util.ArrayList<Notification.Action>
+                for(action in actions) {
+                    l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs}")
+                    val inputs = action.remoteInputs ?: emptyArray()
+                    for(input in inputs) {
+                        l("\t\t\t${input}")
+                    }
                 }
             }
 
