@@ -51,6 +51,8 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
 
     init {
         isClickable = true
+        alpha = 0f
+        rotation = 0f
     }
 
     private val overlayView = LinearLayout(context).apply {

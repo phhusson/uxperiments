@@ -522,6 +522,7 @@ class NotificationService : NotificationListenerService() {
             title = "phh-ux-overlay"
         }
         var inited = false
+        var initing = true
     }
 
     lateinit var rootLayout : Bar
@@ -571,6 +572,7 @@ class NotificationService : NotificationListenerService() {
         for(notif in notifs) {
             onNotificationPosted(notif as StatusBarNotification, null)
         }
+        initing = false
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap?) {

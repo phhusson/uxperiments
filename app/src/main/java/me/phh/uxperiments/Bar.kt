@@ -105,6 +105,21 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
             } else {
                 v = DiscussionOverlay(discussion, did, context)
                 discussionOverlays[did] = v
+                if(!NotificationService.initing) {
+                    l("Animating ${System.identityHashCode(v)}!", Exception())
+                    v
+                            .animate()
+                            .setDuration(10000)
+                            .alpha(1f)
+                            .withStartAction {
+                                l("Starting animation on ${System.identityHashCode(v)}!")
+                            }
+                            .withEndAction {
+                                l("Finishing animation on ${System.identityHashCode(v)}!")
+                            }
+                } else {
+                    v.alpha = 1f
+                }
             }
             grid.addView(v as View)
         }
