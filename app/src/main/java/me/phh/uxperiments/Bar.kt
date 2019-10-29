@@ -66,15 +66,9 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
                 updateViews()
             }
         })
-
-        setOnFocusChangeListener(object: OnFocusChangeListener {
-            override fun onFocusChange(v: View?, hasFocus: Boolean) {
-                l("Focus change $v $hasFocus")
-            }
-        })
     }
 
-    object brightnessControl {
+    object BrightnessControl {
         var active = false
         var startX = -1.0f
         var startY = -1.0f
@@ -149,27 +143,27 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
                     }
 
                     override fun onTouchEvent(event: MotionEvent): Boolean {
-                        if(event.action != MotionEvent.ACTION_MOVE && brightnessControl.active) {
-                            brightnessControl.active = false
+                        if(event.action != MotionEvent.ACTION_MOVE && BrightnessControl.active) {
+                            BrightnessControl.active = false
                             return true
                         }
-                        if(brightnessControl.active) {
-                            if(brightnessControl.startX == -1.0f) {
-                                brightnessControl.startX = event.x
-                                brightnessControl.startY = event.y
+                        if(BrightnessControl.active) {
+                            if(BrightnessControl.startX == -1.0f) {
+                                BrightnessControl.startX = event.x
+                                BrightnessControl.startY = event.y
                             } else {
                                 val density = resources.displayMetrics.density
-                                val dx = (event.x - brightnessControl.startX) / density
-                                val dy = -(event.y - brightnessControl.startY) / density
+                                val dx = (event.x - BrightnessControl.startX) / density
+                                val dy = -(event.y - BrightnessControl.startY) / density
 
-                                val brightness = max(min(brightnessControl.startBrightness + (dx+dy), 255.0f),0.0f)
+                                val brightness = max(min(BrightnessControl.startBrightness + (dx+dy), 255.0f),0.0f)
                                 l("Setting brightness to $brightness")
                                 Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, brightness.toInt())
                             }
                             return true
                         }
                         if(event.action == MotionEvent.ACTION_DOWN) {
-                            brightnessControl.start(context)
+                            BrightnessControl.start(context)
                             return true
                         }
                         return true
@@ -198,7 +192,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
                         it.setGravity(Gravity.RIGHT or Gravity.FILL)
                     }
                     it.setOnClickListener {
-                        brightnessControl.start(context)
+                        BrightnessControl.start(context)
                     }
                 }
         )
