@@ -79,7 +79,14 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
             override fun onDoubleTap(e: MotionEvent?): Boolean {
                 l("double tap")
                 (parent as? ViewGroup)?.removeAllViews()
-                discussion.contentIntent?.send()
+
+                //Sadly contentIntent can be cancelled, and often are.
+                try {
+                    discussion.contentIntent?.send()
+                } catch(e: android.app.PendingIntent.CanceledException) {
+                    l("Failed sending contentIntent because of canceld exception")
+
+                }
                 return true
             }
         })
