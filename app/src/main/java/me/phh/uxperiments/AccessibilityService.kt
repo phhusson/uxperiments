@@ -15,6 +15,7 @@ import android.os.HandlerThread
 
 import android.accessibilityservice.AccessibilityService
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -33,8 +34,11 @@ data class Message(val msg: String, val me: Boolean)
 class Discussion {
     var isGroup = false
     var persons = listOf<Person>()
-    var replyAction: Notification.Action? = null
     var messages = listOf<Message>()
+
+    var replyAction: Notification.Action? = null
+    var contentIntent: PendingIntent? = null
+    var deleteIntent : PendingIntent? = null
 }
 
 data class DiscussionId(val pkgName: String, val person: Person) {
@@ -132,6 +136,8 @@ class Accessibility : AccessibilityService() {
             d.messages = messages
             d.persons = p
             d.replyAction = replyAction
+            d.contentIntent = n.contentIntent
+            d.deleteIntent = n.deleteIntent
 
             val did = DiscussionId(pkgName, d)
             Discussions.merge(did, d)
@@ -164,6 +170,13 @@ class Accessibility : AccessibilityService() {
 
             var uniqueId = n.extras.get("android.hiddenConversationTitle") as? CharSequence
             if(uniqueId == null) uniqueId = n.extras.get("android.conversationTitle") as? CharSequence
+            if(uniqueId == null) return
+            if(pkgName == "com.whatsapp") {
+                val pos = uniqueId.lastIndexOf("(")
+                if(pos != -1) {
+                    uniqueId = uniqueId.substring(0, pos)
+                }
+            }
 
             val messages = messagesBundle.map {
                 Message(
@@ -173,7 +186,7 @@ class Accessibility : AccessibilityService() {
             }
             l("Got $uniqueId : ${messages.joinToString(", ")}")
 
-            if(uniqueId == null) return
+
 
             val replyAction = getReplyAction(n)
 
@@ -182,6 +195,8 @@ class Accessibility : AccessibilityService() {
             d.messages = messages
             d.persons = emptyList()
             d.replyAction = replyAction
+            d.contentIntent = n.contentIntent
+            d.deleteIntent = n.deleteIntent
 
             val did = DiscussionId(pkgName, Person(nick = uniqueId.toString(), uri = null))
             Discussions.merge(did, d)
@@ -200,37 +215,35 @@ class Accessibility : AccessibilityService() {
             d.replyAction = replyAction
 
             val did = DiscussionId("com.android.messaging", Person(nick = phoneNumber.toString(), uri = null))
+            d.contentIntent = n.contentIntent
+            d.deleteIntent = n.deleteIntent
             Discussions.merge(did, d)
         }
 
-        fun onTelegramNotification(n: Notification) {
-            l("telegram notification")
+        fun onGenericNotification(pkgName: String, n: Notification, supportGroups: Boolean = false) {
+            l("Generic notification")
             val extras = n.extras ?: Bundle()
-            val isGroup = n.extras.get("android.isGroupConversation") as? Boolean ?: false
+            val isGroup = extras?.get("android.isGroupConversation") as? Boolean ?: false
             l("is group ${isGroup}")
             if(isGroup) {
+                if(supportGroups)
+                    onSimpleGroupNotification(pkgName, n)
             } else {
-                onSimpleMessageNotification("org.telegram.messenger", n)
-            }
-        }
-
-        fun onQuasselNotification(n: Notification) {
-            l("quassel notification")
-            val extras = n.extras ?: Bundle()
-            val isGroup = n.extras.get("android.isGroupConversation") as? Boolean ?: false
-            if(isGroup) {
-                onSimpleGroupNotification("com.iskrembilen.quasseldroid", n)
-            } else {
-                onSimpleMessageNotification("com.iskrembilen.quasseldroid", n)
+                onSimpleMessageNotification(pkgName, n)
             }
         }
 
         fun handleNotification(pkgName: String, n: Notification) {
-            if(pkgName == "org.telegram.messenger") onTelegramNotification(n)
+            /*if(pkgName == "org.telegram.messenger") onTelegramNotification(n)
             if(pkgName == "com.iskrembilen.quasseldroid") onQuasselNotification(n)
+            if(pkgName == "com.whatsapp") onGenericNotification(pkgName, n)*/
             if(pkgName == "com.android.messaging") onSmsNotification(n)
+            when(pkgName) {
+                "com.whatsapp", "org.telegram.messenger", "com.iskrembilen.quasseldroid" -> onGenericNotification(pkgName, n, supportGroups =  true)
+            }
 
             l("Got notification $n from $pkgName")
+            l("\t public version = ${n.publicVersion?.tickerText}, ${n.publicVersion?.extras?.get("android.title")}, ${n.publicVersion?.extras?.get("android.text")}")
             l("\tbigContentView ${n.bigContentView}, contentView ${n.contentView}, headsUpContentView ${n.headsUpContentView}")
             l("\tticker '${n.tickerText}'")
             l("\tcontentIntent ${n.contentIntent} deleteIntent ${n.deleteIntent} fullScreenIntent ${n.fullScreenIntent}")
@@ -464,6 +477,7 @@ class Accessibility : AccessibilityService() {
         d.persons = listOf(Person(nick, null))
         d.messages = messages
         d.isGroup = isGroup
+
         Discussions.merge(
                 DiscussionId(e.packageName.toString(), d),
                 d

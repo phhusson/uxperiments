@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.*
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.*
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -12,6 +14,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import org.w3c.dom.Text
+import kotlin.math.abs
 import kotlin.math.min
 
 class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: Context) : View(context), SelectorView {
@@ -49,7 +52,43 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
     init {
         isClickable = true
     }
+
     private val overlayView = LinearLayout(context).apply {
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
+                val vy = velocityY / scale
+                val vx = velocityX / scale
+                l("fling $vx $vy")
+
+                // vertical fling
+                if(abs(vy) > 3 * abs(vx)) {
+                    //Down to up
+                    if(vy < 0) {
+                        l("Got deleteintent ${discussion.deleteIntent}")
+                        discussion.deleteIntent?.send()
+
+                        val d = Discussions.map.remove(did)
+                        l("Remove discussion $d")
+
+                        val b = parent as? PopupContainer
+                        b?.bar?.updateViews()
+                    }
+                }
+                return true
+            }
+            override fun onDoubleTap(e: MotionEvent?): Boolean {
+                l("double tap")
+                (parent as? ViewGroup)?.removeAllViews()
+                discussion.contentIntent?.send()
+                return true
+            }
+        })
+
+        setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
+        }
+
         orientation = LinearLayout.VERTICAL
         layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -91,6 +130,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.MATCH_PARENT
                         )
+                        setTextColor(Color.WHITE)
                         setSingleLine()
                         imeOptions = EditorInfo.IME_ACTION_DONE
                         setOnEditorActionListener(object : TextView.OnEditorActionListener {

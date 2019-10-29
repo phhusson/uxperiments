@@ -13,6 +13,34 @@ import android.widget.Space
 import kotlin.math.max
 import kotlin.math.min
 
+
+class PopupContainer(context: Context, val bar: Bar) : LinearLayout(context) {
+    val wm = context.getSystemService(WindowManager::class.java)
+    override fun removeAllViews() {
+        super.removeAllViews()
+        bar.grid.currentSelected = null
+
+        val p = NotificationService.popupParams
+        p.flags =
+                NotificationService.popupParams.flags or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        wm.updateViewLayout(this, p)
+    }
+
+    override fun addView(child: View) {
+        val new = (childCount == 0)
+        super.addView(child)
+
+        if(!new) return
+
+        val p = NotificationService.popupParams
+        p.flags =
+                NotificationService.popupParams.flags and
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        wm.updateViewLayout(this, p)
+    }
+}
+
 class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context) {
     val grid: SelectorGrid
     val popupContainer: LinearLayout
@@ -20,30 +48,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
 
     val barHeight = (30 * resources.displayMetrics.density).toInt()
     init {
-        popupContainer = object: LinearLayout(context) {
-            val wm = context.getSystemService(WindowManager::class.java)
-            override fun removeAllViews() {
-                super.removeAllViews()
-                val p = NotificationService.popupParams
-                p.flags =
-                        NotificationService.popupParams.flags or
-                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                wm.updateViewLayout(this, p)
-            }
-
-            override fun addView(child: View) {
-                val new = (childCount == 0)
-                super.addView(child)
-
-                if(!new) return
-
-                val p = NotificationService.popupParams
-                p.flags =
-                        NotificationService.popupParams.flags and
-                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-                wm.updateViewLayout(this, p)
-            }
-        }
+        popupContainer = PopupContainer(context, this)
 
         grid = SelectorGrid(context, popupContainer).also {
             it.orientation = LinearLayout.HORIZONTAL
@@ -69,24 +74,6 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         })
     }
 
-    override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
-        l("Got key event preime ${event.action} ${event.keyCode}")
-        return super.dispatchKeyEventPreIme(event)
-    }
-
-    override fun dispatchWindowFocusChanged(hasFocus: Boolean) {
-        l("Window focus changed $hasFocus")
-        super.dispatchWindowFocusChanged(hasFocus)
-    }
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        l("dispatch touch even ${ev.action} ${ev.x} ${ev.y} ${height}")
-        l("\t${animation?.hasStarted()} ${animation?.hasEnded()}")
-
-        return super.dispatchTouchEvent(ev)
-    }
-
-
     object brightnessControl {
         var active = false
         var startX = -1.0f
@@ -106,8 +93,11 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
     fun updateViews() {
         grid.removeAllViews()
 
+        if(popupContainer.childCount > 0)
+            popupContainer.removeAllViews()
+
         for( (did, discussion) in Discussions.map) {
-            var v: SelectorView? = null
+            var v: SelectorView?
             if(discussionOverlays.containsKey(did)) {
                 l("Discussion already there, updating other one")
                 v = discussionOverlays[did]
@@ -134,12 +124,6 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         grid.addView(
                 object: ImageView(context), SelectorView {
                     override fun onSelected() {
-                    }
-
-                    val overlayView = object: View(context) {
-                        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-                            setMeasuredDimension(0, 0)
-                        }
                     }
 
                     override fun getOverlayView(): View? {
