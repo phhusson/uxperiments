@@ -43,11 +43,13 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
             return true
         }
 
+        var gotOneY = false
         for(touchable in touchables) {
             touchable.getHitRect(r)
             val isInX = ev.x >= r.left && ev.x <= r.right
             val isInY = ev.y >= r.top && ev.y <= bottom
             val isDownOrMoving = ev.action == MotionEvent.ACTION_DOWN || ev.action == MotionEvent.ACTION_MOVE
+            gotOneY = gotOneY or isInY
             if(isInX && isInY && isDownOrMoving &&!startedGesture) {
                 wasOnBar = true
                 hasMoved = hasMoved || ev.action == MotionEvent.ACTION_MOVE
@@ -85,6 +87,7 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
                 wasOnBar = false
             }
         }
+        if(gotOneY) return true
         return super.dispatchTouchEvent(ev)
     }
 }
