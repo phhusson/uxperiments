@@ -197,6 +197,6 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
         val heightSize = MeasureSpec.getSize(heightMeasureSpec)
-        setMeasuredDimension(heightSize*1.2.toInt(), heightSize)
+        setMeasuredDimension(heightSize*1.4.toInt(), heightSize)
     }
 }
