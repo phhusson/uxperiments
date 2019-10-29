@@ -58,9 +58,9 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
                         return true
                     }
 
+                    container.removeAllViews()
                     currentSelected = touchable
                     val v = touchable.getOverlayView()
-                    container.removeAllViews()
                     if(v != null) {
                         container.addView(v)
                     }
