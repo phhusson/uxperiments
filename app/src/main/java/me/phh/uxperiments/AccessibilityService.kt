@@ -266,7 +266,7 @@ class Accessibility : AccessibilityService() {
                 for(key in (wearable as Bundle).keySet()) {
                     l("Wearable - $key ${wearable.get(key)}")
                 }
-                val actions = wearable?.get("actions") as java.util.ArrayList<Notification.Action>
+                val actions = wearable?.get("actions") as? java.util.ArrayList<Notification.Action> ?: emptyList<Notification.Action>()
                 for(action in actions) {
                     l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs}")
                     val inputs = action.remoteInputs ?: emptyArray()
