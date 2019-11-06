@@ -16,6 +16,7 @@ import android.os.HandlerThread
 import android.accessibilityservice.AccessibilityService
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -23,10 +24,13 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.hardware.display.DisplayManager
 
 import android.hardware.display.VirtualDisplay
+import android.media.MediaMetadata
+import android.media.session.MediaController
 import android.view.Gravity
 
 import android.view.Surface
 import android.view.WindowManager
+import java.lang.ref.WeakReference
 
 data class Person(val nick: String, val uri: String?)
 data class Message(val msg: String, val me: Boolean)
@@ -70,6 +74,7 @@ class Accessibility : AccessibilityService() {
     companion object {
         const val PKG_GMAIL = "com.google.android.gm"
         const val PKG_WHATSAPP = "com.whatsapp"
+        var ctxt: WeakReference<Context>? = null
 
         fun l(s: String) {
             android.util.Log.d("PHH-UX", s)
@@ -233,13 +238,66 @@ class Accessibility : AccessibilityService() {
             }
         }
 
+        fun onGmailNotification(pkgName: String, n: Notification) {
+            val threadTitle = n.extras?.get("android.text") as? CharSequence ?: return
+            val author = n.extras?.get("android.title") as? CharSequence ?: return
+            val authorAddress = (n.extras
+                ?.get("android.people.list")
+                    as? List<android.app.Person>)
+                    ?.firstOrNull()
+                    ?.uri
+                    ?.replace("mailto:","")
+            val fullMail = n.extras?.get("android.bigText") as? CharSequence ?: return
+            val mail =
+                    if(fullMail.startsWith(threadTitle)) {
+                        fullMail.substring(threadTitle.length+1)
+                    } else {
+                        fullMail
+                    }
+
+
+            val formatedMail = "$author <$authorAddress>\n\n$mail"
+
+            val d = Discussion()
+            d.isGroup = false
+            d.messages = listOf(Message(formatedMail, false))
+            d.persons = emptyList()
+
+            val did = DiscussionId(pkgName, Person(nick = threadTitle.toString(), uri = null))
+            d.contentIntent = n.contentIntent
+            d.deleteIntent = n.deleteIntent
+            Discussions.merge(did, d)
+        }
+
+        fun onMediaNotification(pkgName: String, n: Notification) {
+            val mediaToken = n.extras?.get("android.mediaSession") as? android.media.session.MediaSession.Token ?: return
+            val c = ctxt?.get() ?: return
+            val mediaController = MediaController(c, mediaToken)
+            val metadata = mediaController.metadata
+            l("Got media metadata $metadata ${metadata?.description}")
+            for(key in metadata.keySet()) {
+                l("\t - $key")
+            }
+            l("\textras")
+            val e = mediaController.extras?: Bundle()
+            for(key in e.keySet()) {
+                l("\t- ${key} => ${e.get(key)}")
+            }
+            /*mediaController.registerCallback(object: MediaController.Callback() {
+                override fun onMetadataChanged(metadata: MediaMetadata) {
+                    val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
+                    val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                    l("Got new $title $artist")
+                }
+            })*/
+        }
+
         fun handleNotification(pkgName: String, n: Notification) {
-            /*if(pkgName == "org.telegram.messenger") onTelegramNotification(n)
-            if(pkgName == "com.iskrembilen.quasseldroid") onQuasselNotification(n)
-            if(pkgName == "com.whatsapp") onGenericNotification(pkgName, n)*/
-            if(pkgName == "com.android.messaging") onSmsNotification(n)
+            if(n.extras?.get("android.mediaSession") != null) onMediaNotification(pkgName, n)
             when(pkgName) {
                 "com.whatsapp", "org.telegram.messenger", "com.iskrembilen.quasseldroid" -> onGenericNotification(pkgName, n, supportGroups =  true)
+                "com.android.messaging" -> onSmsNotification(n)
+                "com.google.android.gm" -> onGmailNotification(pkgName, n)
             }
 
             l("Got notification $n from $pkgName")
@@ -250,10 +308,15 @@ class Accessibility : AccessibilityService() {
             val actions = n.actions ?: emptyArray()
             l("\tActions:")
             for(action in actions) {
-                l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs}")
+                l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs} ${action.title}")
                 val inputs = action.remoteInputs ?: emptyArray()
                 for(input in inputs) {
                     l("\t\t\t${input}")
+                }
+                l("\t\t\t -- extras")
+                val extras = action.extras ?: Bundle()
+                for(key in extras.keySet()) {
+                    l("\t\t\t- ${key} => ${extras.get(key)}")
                 }
             }
             l("\tExtras:")
@@ -555,6 +618,7 @@ class NotificationService : NotificationListenerService() {
     }
 
     override fun onListenerConnected() {
+        Accessibility.ctxt = WeakReference(this)
         l("onListenerConnected")
         initBar()
         //requestListenerHints(HINT_HOST_DISABLE_NOTIFICATION_EFFECTS)
