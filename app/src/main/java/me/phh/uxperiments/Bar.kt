@@ -63,7 +63,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         updateViews()
         Discussions.registerListener(object: Discussions.Listener {
             override fun onUpdated(did: DiscussionId) {
-                updateViews()
+                updateViews(did)
             }
         })
     }
@@ -84,7 +84,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
 
     val attentionScale = 0.6f
 
-    fun updateViews() {
+    fun updateViews(refreshDid: DiscussionId? = null) {
         grid.removeAllViews()
 
         if(popupContainer.childCount > 0)
@@ -99,23 +99,20 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
             } else {
                 v = DiscussionOverlay(discussion, did, context)
                 discussionOverlays[did] = v
-                if(!NotificationService.initing) {
-                    l("Animating ${System.identityHashCode(v)}!", Exception())
-                    v
-                            .animate()
-                            .setDuration(10000)
-                            .alpha(1f)
-                            .withStartAction {
-                                l("Starting animation on ${System.identityHashCode(v)}!")
-                            }
-                            .withEndAction {
-                                l("Finishing animation on ${System.identityHashCode(v)}!")
-                            }
-                } else {
-                    v.alpha = 1f
-                }
             }
             grid.addView(v as View)
+        }
+
+        if(refreshDid != null) {
+            val v = discussionOverlays[refreshDid] as? DiscussionOverlay
+            if(!NotificationService.initing) {
+                v
+                        ?.animate()
+                        ?.setDuration(10000)
+                        ?.alpha(1f)
+            } else {
+                v?.alpha = 1f
+            }
         }
 
         //Spacing to align on the right

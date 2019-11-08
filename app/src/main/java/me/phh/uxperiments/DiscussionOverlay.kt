@@ -5,24 +5,26 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.*
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.*
+import android.view.animation.Transformation
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import org.w3c.dom.Text
 import kotlin.math.abs
 import kotlin.math.min
 
 class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: Context) : View(context), SelectorView {
     override fun onSelected() {
-        val input = inputText?:return
-        input.requestFocus()
-        context.getSystemService(InputMethodManager::class.java)
-                ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+        animate().setDuration(10000).alpha(.3f)
+
+        val input = inputText
+        if(input != null) {
+            input.requestFocus()
+            context.getSystemService(InputMethodManager::class.java)
+                    ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     val mainColor = pickColor(did, 0)
