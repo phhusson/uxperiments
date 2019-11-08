@@ -94,23 +94,26 @@ class Accessibility : AccessibilityService() {
 
         fun onSimpleMessageNotification(pkgName: String, n: Notification, givenUri: String? = null, givenNick: String? = null) {
             // Direct private message
-            val peopleList = n.extras.get("android.people.list")
+            val peopleList =
+                    ((n.extras?.get("android.people.list")) as? java.util.ArrayList<*>)
+                            ?.map { it as android.app.Person}
+
             var uri: String? = givenUri
             var nick: String? = givenNick
 
             if(peopleList != null) {
-                uri = (peopleList as java.util.ArrayList<android.app.Person>).firstOrNull()?.uri
+                uri = peopleList.firstOrNull()?.uri
                 if(uri == null) uri = peopleList.firstOrNull()?.key
             }
 
             val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
             val messagesBundle =
-                    java.util.Arrays.asList(*messagesBundleArray as Array<Parcelable>).map { it as Bundle }
+                    listOf(*messagesBundleArray as Array<*>).map { it as Bundle }
 
             if(nick == null) nick = messagesBundle.map { (it.get("sender") as? java.lang.CharSequence).toString()}.firstOrNull()
             val senderPerson = messagesBundle.map { (it.get("sender_person") as? android.app.Person)}.firstOrNull()
             if(senderPerson != null) {
-                if(nick == null) nick = senderPerson.name.toString()
+                if(nick == null) nick = senderPerson.name?.toString()
                 if(uri == null) uri = senderPerson.uri
                 if(uri == null) uri = senderPerson.key
             }
@@ -441,20 +444,16 @@ class Accessibility : AccessibilityService() {
         val telegram = notification.extras.get("android.title").equals("Phh")
 
         if(pkg == PKG_GMAIL) {
-            if(true) {
-                l("haha")
-                val i = notification.contentIntent
-                val person = notification.extras.get("android.subText")
-                handler.postDelayed(Runnable {
-                    l("Starting inside my own display!")
-                    val options = ActivityOptions.makeBasic()
-                    //options.setLaunchDisplayId(MainActivity.sVirtualDisplay!!.getDisplay().getDisplayId())
-                    options.setLaunchDisplayId(getDisplay(pkg + person.hashCode()).getDisplay().getDisplayId())
-                    i.send(this, 0, null, null, null, null, options.toBundle())
-                }, 1000L)
-                return
-            }
-
+            l("haha")
+            val i = notification.contentIntent
+            val person = notification.extras.get("android.subText")
+            handler.postDelayed(Runnable {
+                l("Starting inside my own display!")
+                val options = ActivityOptions.makeBasic()
+                options.setLaunchDisplayId(getDisplay(pkg + person.hashCode()).getDisplay().getDisplayId())
+                i.send(this, 0, null, null, null, null, options.toBundle())
+            }, 1000L)
+            return
         }
     }
 
@@ -541,10 +540,10 @@ class Accessibility : AccessibilityService() {
         d.messages = messages
         d.isGroup = isGroup
 
-        Discussions.merge(
+        /*Discussions.merge(
                 DiscussionId(e.packageName.toString(), d),
                 d
-                )
+                )*/
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {

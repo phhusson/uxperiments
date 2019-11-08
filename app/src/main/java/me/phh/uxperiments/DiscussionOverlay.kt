@@ -31,7 +31,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
     val scale = context.resources.displayMetrics.density
     var startFadeInTime = System.currentTimeMillis()
 
-    private val paint = Paint()
+    private val paint = Paint().apply { isAntiAlias = true }
 
     private val overlayText: TextView
     private val inputText: EditText?
