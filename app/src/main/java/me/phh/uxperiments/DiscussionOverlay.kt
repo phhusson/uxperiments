@@ -9,6 +9,7 @@ import android.view.*
 import android.view.animation.Transformation
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -16,9 +17,24 @@ import kotlin.math.abs
 import kotlin.math.min
 
 class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: Context) : View(context), SelectorView {
+    val clearOnOverview = Runnable {
+        currentDiscussion.deleteIntent?.send()
+        animate().setDuration(2000).alpha(.3f)
+    }
+    override fun onOverview() {
+        handler.postDelayed(clearOnOverview, 3000L)
+        Discussions.Statistics.onOverseen(did)
+    }
+
+    override fun onNoOverview() {
+        handler.removeCallbacks(clearOnOverview)
+    }
+
     override fun onSelected() {
         animate().setDuration(10000).alpha(.3f)
+        currentDiscussion.deleteIntent?.send()
 
+        Discussions.Statistics.onSelected(did)
         val input = inputText
         if(input != null) {
             input.requestFocus()
@@ -69,13 +85,14 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
                     //Down to up
                     if(vy < 0) {
                         l("Got deleteintent ${discussion.deleteIntent}")
-                        discussion.deleteIntent?.send()
+                        currentDiscussion.deleteIntent?.send()
 
                         val d = Discussions.map.remove(did)
                         l("Remove discussion $d")
 
                         val b = parent as? PopupContainer
                         b?.bar?.updateViews()
+                        Discussions.Statistics.onDismissed(did)
                     }
                 }
                 return true
@@ -86,7 +103,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
 
                 //Sadly contentIntent can be cancelled, and often are.
                 try {
-                    discussion.contentIntent?.send()
+                    currentDiscussion.contentIntent?.send()
                 } catch(e: android.app.PendingIntent.CanceledException) {
                     l("Failed sending contentIntent because of canceld exception")
 
@@ -161,7 +178,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
                                     val i = Intent()
                                     RemoteInput.addResultsToIntent(a.remoteInputs, i, b)
                                     RemoteInput.setResultsSource(i, RemoteInput.SOURCE_FREE_FORM_INPUT)
-                                    Accessibility.l("Sending!!!")
+                                    l("Sending!!!")
                                     a.actionIntent.send(context, 0, i)
 
                                     p0.text = ""
@@ -184,9 +201,27 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
         } else {
             inputText = null
         }
+
+        val actions = currentDiscussion.actions
+                .filter { it.remoteInputs == null || it.remoteInputs.size == 0}
+        if(actions.isNotEmpty()) {
+            val buttonsLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for(action in actions) {
+                    addView(Button(context).apply {
+                        text = action.title
+                        setOnClickListener {
+                            action.actionIntent.send()
+                        }
+                    })
+                }
+            }
+            addView(buttonsLayout)
+        }
     }
 
     override fun getOverlayView(): View {
+        Discussions.Statistics.onOverseen(did)
         return overlayView
     }
 

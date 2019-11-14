@@ -13,6 +13,8 @@ interface SelectorView  {
     fun getOverlayView(): View?
     fun updateDiscussion(d: Discussion)
     fun onSelected()
+    fun onOverview()
+    fun onNoOverview()
 }
 
 class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout(context) {
@@ -58,12 +60,14 @@ class SelectorGrid(context: Context, val container: LinearLayout) : LinearLayout
                         return true
                     }
 
+                    currentSelected?.onNoOverview()
                     container.removeAllViews()
                     currentSelected = touchable
                     val v = touchable.getOverlayView()
                     if(v != null) {
                         container.addView(v)
                     }
+                    touchable.onOverview()
                     return true
                 }
                 return true

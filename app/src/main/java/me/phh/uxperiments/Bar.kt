@@ -63,6 +63,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         updateViews()
         Discussions.registerListener(object: Discussions.Listener {
             override fun onUpdated(did: DiscussionId) {
+                l("Bar received new $did")
                 updateViews(did)
             }
         })
@@ -105,6 +106,8 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
 
         if(refreshDid != null) {
             val v = discussionOverlays[refreshDid] as? DiscussionOverlay
+            //TODO Move this to DiscussionOverlay
+            Discussions.Statistics.onNotified(refreshDid)
             if(!NotificationService.initing) {
                 v
                         ?.animate()
@@ -129,6 +132,12 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         //Brightness control gesture
         grid.addView(
                 object: ImageView(context), SelectorView {
+                    override fun onOverview() {
+                    }
+
+                    override fun onNoOverview() {
+                    }
+
                     override fun onSelected() {
                     }
 
