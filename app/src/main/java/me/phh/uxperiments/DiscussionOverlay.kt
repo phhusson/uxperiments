@@ -203,7 +203,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
         }
 
         val actions = currentDiscussion.actions
-                .filter { it.remoteInputs == null || it.remoteInputs.size == 0}
+                .filter { it.remoteInputs == null || it.remoteInputs.isEmpty() }
         if(actions.isNotEmpty()) {
             val buttonsLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL

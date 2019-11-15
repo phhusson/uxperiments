@@ -58,7 +58,7 @@ class Accessibility : AccessibilityService() {
         handler.postDelayed(Runnable {
             l("Starting inside my own display!")
             val options = ActivityOptions.makeBasic()
-            options.setLaunchDisplayId(getDisplay(pkg + person.hashCode()).getDisplay().getDisplayId())
+            options.launchDisplayId = getDisplay(pkg + person.hashCode()).getDisplay().getDisplayId()
             i.send(this, 0, null, null, null, null, options.toBundle())
         }, 1000L)
     }

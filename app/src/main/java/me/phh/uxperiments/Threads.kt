@@ -42,7 +42,7 @@ object Discussions {
     fun merge(did: DiscussionId, d: Discussion) {
         map[did] = d
         for(l in listeners) {
-            l.get()?.onUpdated(did)
+            l.onUpdated(did)
         }
     }
 
@@ -63,6 +63,7 @@ object Discussions {
                    notified: Boolean = false,
                    dismissed: Boolean = false) {
             if(!statistics.containsKey(did)) {
+                l("Reset-ing $did")
                 statistics[did] = DiscussionStatistics(
                         0.0, 0.0, 0.0, 0.0,
                         System.currentTimeMillis(), emptySet())
@@ -71,15 +72,16 @@ object Discussions {
 
             val s = statistics[did]!!
             val now = System.currentTimeMillis()
-            val delta = now - s.lastSeen
-            val period = 1/(24.0*3600.0*1000)
+            val delta = (now - s.lastSeen).toDouble()
+            val period = (24.0*3600.0*1000.0)
             val factor = exp(- delta / period)
-            statistics[did] = DiscussionStatistics(
-                    s.fOverseen * factor + if(overseen) 1 else 0,
-                    s.fSelected * factor + if(selected) 1 else 0,
-                    s.fNotified * factor + if(notified) 1 else 0,
-                    s.fDismissed * factor + if(dismissed) 1 else 0,
-                    System.currentTimeMillis(), emptySet())
+
+            val mO = s.fOverseen * factor + if(overseen) 1.0 else 0.0
+            val mS = s.fSelected * factor + if(selected) 1.0 else 0.0
+            val mN = s.fNotified * factor + if(notified) 1.0 else 0.0
+            val mD = s.fDismissed * factor + if(dismissed) 1.0 else 0.0
+            l("Setting to $mO $mS $mN $mD using factor $factor")
+            statistics[did] = DiscussionStatistics(mO, mS, mN, mD, System.currentTimeMillis(), emptySet())
         }
 
         fun onSelected(did: DiscussionId) {
@@ -96,13 +98,13 @@ object Discussions {
         }
     }
 
-    val listeners = mutableSetOf<WeakReference<Listener>>()
+    val listeners = mutableSetOf<Listener>()
     fun registerListener(l: Listener) {
-        listeners.add(WeakReference(l))
+        listeners.add(l)
     }
 
     fun unregisterListener(l: Listener) {
-        listeners.remove(WeakReference(l))
+        listeners.remove(l)
     }
 
     const val PKG_GMAIL = "com.google.android.gm"
