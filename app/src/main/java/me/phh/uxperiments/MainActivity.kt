@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.util.Log
 
 class MainActivity : Activity() {
-
     lateinit var rootLayout: Bar
 
     override fun onCreate(savedInstanceState: Bundle?) {

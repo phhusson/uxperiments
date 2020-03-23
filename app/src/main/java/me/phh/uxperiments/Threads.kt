@@ -9,7 +9,6 @@ import android.media.session.MediaController
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
-import java.lang.ref.WeakReference
 import kotlin.math.exp
 import kotlinx.serialization.Serializable
 import java.io.File
@@ -307,7 +306,7 @@ object Discussions {
             "com.google.android.gm" -> onGmailNotification(pkgName, n)
         }
 
-        l("Got notification $n from $pkgName")
+        l("Got notification $n from $pkgName ${n.smallIcon} ${n.getLargeIcon()}")
         l("\t public version = ${n.publicVersion?.tickerText}, ${n.publicVersion?.extras?.get("android.title")}, ${n.publicVersion?.extras?.get("android.text")}")
         l("\tbigContentView ${n.bigContentView}, contentView ${n.contentView}, headsUpContentView ${n.headsUpContentView}")
         l("\tticker '${n.tickerText}'")

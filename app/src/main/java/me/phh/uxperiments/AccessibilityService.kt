@@ -27,34 +27,11 @@ import android.view.Surface
 import android.view.WindowManager
 import java.lang.ref.WeakReference
 
+import java.io.File
 
 class Accessibility : AccessibilityService() {
     companion object {
         var ctxt: WeakReference<Context>? = null
-    }
-    private val handlerThread = HandlerThread("Accessibility service").also { it.start() }
-    val handler = Handler(handlerThread.looper)
-
-    var pkgToDisplay = mutableMapOf<String, VirtualDisplay>()
-    private fun getDisplay(pkg: String): VirtualDisplay {
-        if(pkgToDisplay.contains(pkg)) return pkgToDisplay[pkg]!!
-        val dm = getSystemService(DisplayManager::class.java)
-        val virtualDisplay = dm.createVirtualDisplay("phh-ux-$pkg", 360, 640, 120,
-            Surface(SurfaceTexture(pkg.hashCode())),
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC)
-        pkgToDisplay[pkg] = virtualDisplay
-        return virtualDisplay
-    }
-
-    fun sendPhhAnswer(pkg: String, notification: Notification) {
-        val i = notification.contentIntent
-        val person = notification.extras.get("android.subText")
-        handler.postDelayed(Runnable {
-            l("Starting inside my own display!")
-            val options = ActivityOptions.makeBasic()
-            options.launchDisplayId = getDisplay(pkg + person.hashCode()).getDisplay().getDisplayId()
-            i.send(this, 0, null, null, null, null, options.toBundle())
-        }, 1000L)
     }
 
     override fun onServiceConnected() {
