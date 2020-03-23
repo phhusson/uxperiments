@@ -5,8 +5,6 @@ import android.service.notification.StatusBarNotification
 
 import android.graphics.SurfaceTexture
 
-import android.os.Parcelable
-
 import android.app.ActivityOptions
 import android.app.Notification
 import android.os.Bundle
@@ -15,7 +13,6 @@ import android.os.HandlerThread
 
 import android.accessibilityservice.AccessibilityService
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
@@ -24,8 +21,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.hardware.display.DisplayManager
 
 import android.hardware.display.VirtualDisplay
-import android.media.MediaMetadata
-import android.media.session.MediaController
 import android.view.Gravity
 
 import android.view.Surface
