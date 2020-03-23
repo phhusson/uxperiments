@@ -80,28 +80,29 @@ class Accessibility : AccessibilityService() {
     }
 
     fun AccessibilityNodeInfo.children(): List<AccessibilityNodeInfo> {
-        return (0 until childCount).map { this.getChild(it) }
+        return (0 until childCount).map { this.getChild(it) }.filterNotNull()
     }
 
     fun onTelegramAccessibility(e: AccessibilityEvent) {
         if(e.packageName != "org.telegram.messenger") return
         if(e.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         if(e.className != "android.widget.FrameLayout") return
-        val root = e.source
+        val root = e.source ?: return
 
         val isGroup = {
             val node = root
-                    ?.children()
-                    ?.firstOrNull() { it.className.endsWith("FrameLayout")}
+                    .children()
+                    .firstOrNull() { it.className.endsWith("FrameLayout")}
                     ?.children()
                     ?.firstOrNull() { it.className.endsWith("FrameLayout") }
                     ?.children()
+                    ?.filter { it.className.endsWith("TextView")}
                     ?.getOrNull(1)
                     ?.text ?: ""
-            //TODO: XXX language-dependant
+
+            //TODO: XXX language-dependant, and won't work if someone is typing
             node.contains("members")
         }()
-        if(isGroup) return
 
         // Look for a child of type RecyclerView with exclusively ViewGroup in it
         val chatNodes =
@@ -122,22 +123,30 @@ class Accessibility : AccessibilityService() {
                         ?.children()
                         ?.firstOrNull { it.className.endsWith("FrameLayout")}
                         ?.children()
+                        ?.filter { it.className.endsWith("TextView")}
                         ?.firstOrNull()
                         ?.text
-                        ?.toString() ?: ""
+                        ?.toString()
+        if(nick == null) {
+            l("Failed getting nick")
+            return
+        }
 
         val messages =
                 chatNode
                         .children()
-                        .map { it.text ?: return }
+                        .map { it.text ?: it.contentDescription }
+                        .filterNotNull()
                         .map {
                             //TODO: XXX language-dependant
+                            val me = it.contains("Sent")
+
                             val lines = it.split("\n")
                             val msgLines = lines.take(lines.size-1)
 
                             Message(
                                     msg = msgLines.joinToString("\n"),
-                                    me = it.contains("Sent"))
+                                    me = me)
                         }
 
         val d = Discussion()
