@@ -11,6 +11,10 @@ import android.os.Parcelable
 import android.util.Log
 import java.lang.ref.WeakReference
 import kotlin.math.exp
+import kotlinx.serialization.Serializable
+import java.io.File
+import java.lang.ref.WeakReference
+import kotlin.math.exp
 
 fun l(s: String) {
     android.util.Log.d("PHH-UX", s)
@@ -20,7 +24,9 @@ fun l(s: String, t: Throwable) {
     android.util.Log.d("PHH-UX", s, t)
 }
 
+@Serializable
 data class Person(val nick: String, val uri: String?)
+@Serializable
 data class Message(val msg: String, val me: Boolean)
 
 class Discussion {
@@ -34,78 +40,27 @@ class Discussion {
     var actions = listOf<Notification.Action>()
 }
 
+@Serializable
 data class DiscussionId(val pkgName: String, val person: Person) {
     constructor(pkgName: String, d: Discussion) : this(pkgName, d.persons[0])
 }
-data class DiscussionStatistics(
-        val fOverseen: Double, val fSelected: Double, val fNotified: Double, val fDismissed: Double,
-        val lastSeen: Long,
-        val seenPersons: Set<Int> //hashes of android.app.Person
-        )
 
 object Discussions {
     interface Listener {
         fun onUpdated(did: DiscussionId)
     }
     val map = mutableMapOf<DiscussionId, Discussion>()
-    fun merge(did: DiscussionId, d: Discussion) {
+
+    //Returns whether discussion has changed
+    fun merge(did: DiscussionId, d: Discussion): Boolean {
+        if(d == map[did]) return false
         Log.d("PHH-Threads", "Received discussion ${d.persons.firstOrNull()} ${d.messages.joinToString("\n") { (if(it.me) "\t> " else "\t< ") + it.msg }}")
+
         map[did] = d
         for(l in listeners) {
             l.onUpdated(did)
         }
-    }
-
-
-    object Statistics {
-        val statistics = mutableMapOf<DiscussionId,DiscussionStatistics>()
-        fun dump() {
-            l("Usage statistics:")
-            for(did in statistics.keys) {
-                update(did)
-                l("\t$did: ${statistics[did]}")
-            }
-        }
-
-        fun update(did: DiscussionId,
-                   selected: Boolean = false,
-                   overseen: Boolean = false,
-                   notified: Boolean = false,
-                   dismissed: Boolean = false) {
-            if(!statistics.containsKey(did)) {
-                l("Reset-ing $did")
-                statistics[did] = DiscussionStatistics(
-                        0.0, 0.0, 0.0, 0.0,
-                        System.currentTimeMillis(), emptySet())
-                return
-            }
-
-            val s = statistics[did]!!
-            val now = System.currentTimeMillis()
-            val delta = (now - s.lastSeen).toDouble()
-            val period = (24.0*3600.0*1000.0)
-            val factor = exp(- delta / period)
-
-            val mO = s.fOverseen * factor + if(overseen) 1.0 else 0.0
-            val mS = s.fSelected * factor + if(selected) 1.0 else 0.0
-            val mN = s.fNotified * factor + if(notified) 1.0 else 0.0
-            val mD = s.fDismissed * factor + if(dismissed) 1.0 else 0.0
-            l("Setting to $mO $mS $mN $mD using factor $factor")
-            statistics[did] = DiscussionStatistics(mO, mS, mN, mD, System.currentTimeMillis(), emptySet())
-        }
-
-        fun onSelected(did: DiscussionId) {
-            update(did, selected = true)
-        }
-        fun onOverseen(did: DiscussionId) {
-            update(did, overseen = true)
-        }
-        fun onNotified(did: DiscussionId) {
-            update(did, notified = true)
-        }
-        fun onDismissed(did: DiscussionId) {
-            update(did, notified = true)
-        }
+        return true
     }
 
     val listeners = mutableSetOf<Listener>()
@@ -175,7 +130,7 @@ object Discussions {
         val p = listOf(
                 Person(
                         uri = uri,
-                        nick = nick
+                        nick = nick.trim()
                 ))
         val actions = n.actions ?: emptyArray()
         var replyAction = actions.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY}
@@ -251,7 +206,7 @@ object Discussions {
         if(n.actions != null)
             d.actions = n.actions.toList()
 
-        val did = DiscussionId(pkgName, Person(nick = uniqueId.toString(), uri = null))
+        val did = DiscussionId(pkgName, Person(nick = uniqueId.toString().trim(), uri = null))
         merge(did, d)
     }
 
@@ -266,7 +221,7 @@ object Discussions {
         d.persons = emptyList()
         d.replyAction = replyAction
 
-        val did = DiscussionId("com.android.messaging", Person(nick = phoneNumber.toString(), uri = null))
+        val did = DiscussionId("com.android.messaging", Person(nick = phoneNumber.toString().trim(), uri = null))
         d.contentIntent = n.contentIntent
         d.deleteIntent = n.deleteIntent
         if(n.actions != null)
@@ -312,7 +267,7 @@ object Discussions {
         d.messages = listOf(Message(formatedMail, false))
         d.persons = emptyList()
 
-        val did = DiscussionId(pkgName, Person(nick = threadTitle.toString(), uri = null))
+        val did = DiscussionId(pkgName, Person(nick = threadTitle.toString().trim(), uri = null))
         d.contentIntent = n.contentIntent
         d.deleteIntent = n.deleteIntent
         if(n.actions != null)
@@ -346,7 +301,8 @@ object Discussions {
     fun handleNotification(pkgName: String, n: Notification) {
         if(n.extras?.get("android.mediaSession") != null) onMediaNotification(pkgName, n)
         when(pkgName) {
-            "com.whatsapp", "org.telegram.messenger", "com.iskrembilen.quasseldroid" -> onGenericNotification(pkgName, n, supportGroups =  true)
+            "com.whatsapp", "org.telegram.messenger",
+                "com.iskrembilen.quasseldroid", "com.google.android.apps.messaging" -> onGenericNotification(pkgName, n, supportGroups =  true)
             "com.android.messaging" -> onSmsNotification(n)
             "com.google.android.gm" -> onGmailNotification(pkgName, n)
         }
@@ -467,6 +423,13 @@ object Discussions {
 class CommandReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         l("Received broadcast $intent")
-        Discussions.Statistics.dump()
+
+        val dumpFile = File(context.getExternalFilesDir("dump")!!, "dump.json")
+
+        val a = intent.action
+        when(a) {
+            "me.phh.uxperiments.DumpStatistics" -> Statistics.dump(dumpFile)
+            "me.phh.uxperiments.LoadStatistics" -> Statistics.load(dumpFile)
+        }
     }
 }

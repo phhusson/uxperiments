@@ -229,6 +229,14 @@ class NotificationService : NotificationListenerService() {
         wm.addView(rootLayout.popupContainer, popupParams)
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        try {
+            val dumpFile = File(getExternalFilesDir("dump")!!, "dump.json")
+            Statistics.load(dumpFile)
+        } catch(t: Throwable) {}
+    }
+
     override fun onListenerConnected() {
         Accessibility.ctxt = WeakReference(this)
         l("onListenerConnected")

@@ -4,6 +4,8 @@ apply plugin: 'kotlin-android'
 
 apply plugin: 'kotlin-android-extensions'
 
+apply plugin: 'kotlinx-serialization'
+
 android {
     compileSdkVersion 28
     defaultConfig {
@@ -17,6 +19,7 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0"
     implementation "com.google.android.material:material:1.0.0"
 
     // Unit testing dependencies.

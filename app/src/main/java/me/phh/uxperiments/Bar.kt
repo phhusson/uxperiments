@@ -107,7 +107,7 @@ class Bar(context: Context, includePopup: Boolean = true) : LinearLayout(context
         if(refreshDid != null) {
             val v = discussionOverlays[refreshDid] as? DiscussionOverlay
             //TODO Move this to DiscussionOverlay
-            Discussions.Statistics.onNotified(refreshDid)
+            Statistics.onNotified(refreshDid)
             if(!NotificationService.initing) {
                 v
                         ?.animate()

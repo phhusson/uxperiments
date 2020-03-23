@@ -23,7 +23,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
     }
     override fun onOverview() {
         handler.postDelayed(clearOnOverview, 3000L)
-        Discussions.Statistics.onOverseen(did)
+        Statistics.onOverseen(did)
     }
 
     override fun onNoOverview() {
@@ -34,7 +34,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
         animate().setDuration(10000).alpha(.3f)
         currentDiscussion.deleteIntent?.send()
 
-        Discussions.Statistics.onSelected(did)
+        Statistics.onSelected(did)
         val input = inputText
         if(input != null) {
             input.requestFocus()
@@ -92,7 +92,7 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
 
                         val b = parent as? PopupContainer
                         b?.bar?.updateViews()
-                        Discussions.Statistics.onDismissed(did)
+                        Statistics.onDismissed(did)
                     }
                 }
                 return true
@@ -221,7 +221,6 @@ class DiscussionOverlay(discussion: Discussion, val did: DiscussionId, context: 
     }
 
     override fun getOverlayView(): View {
-        Discussions.Statistics.onOverseen(did)
         return overlayView
     }
 

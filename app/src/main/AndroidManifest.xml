@@ -32,6 +32,7 @@
 		<receiver android:name=".CommandReceiver">
 			<intent-filter>
 				<action android:name="me.phh.uxperiments.DumpStatistics" />
+				<action android:name="me.phh.uxperiments.LoadStatistics" />
 			</intent-filter>
 		</receiver>
 
