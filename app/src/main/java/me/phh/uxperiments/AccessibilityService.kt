@@ -47,7 +47,6 @@ class Accessibility : AccessibilityService() {
     }
 
     fun sendPhhAnswer(pkg: String, notification: Notification) {
-        l("haha")
         val i = notification.contentIntent
         val person = notification.extras.get("android.subText")
         handler.postDelayed(Runnable {
@@ -154,18 +153,18 @@ class Accessibility : AccessibilityService() {
         d.messages = messages
         d.isGroup = isGroup
 
-        /*Discussions.merge(
+        Discussions.merge(
                 DiscussionId(e.packageName.toString(), d),
-                d
-                )*/
+                d)
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
+        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3") return
+
         onTelegramAccessibility(e)
         l("Got event ${e.getEventType()}")
         l("\tpackage src = ${e.getPackageName()}")
         l("\tsrc class = ${e.getClassName()}")
-        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3") return
         if(e.source != null) {
             l("\tsrc = ${e.source.getHintText()}")
             browse(e.source)
