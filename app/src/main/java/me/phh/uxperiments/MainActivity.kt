@@ -1,15 +1,9 @@
 package me.phh.uxperiments
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
-
-fun l(s: String) {
-    android.util.Log.d("PHH-UX", s)
-}
-
-fun l(s: String, t: Throwable) {
-    android.util.Log.d("PHH-UX", s, t)
-}
+import android.util.Log
 
 class MainActivity : Activity() {
 
@@ -23,8 +17,25 @@ class MainActivity : Activity() {
         setContentView(rootLayout)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Log.d("PHH-Activity", "New Intent intent ${intent} ${intent.extras} ${intent.extras.keySet()}")
+        for(key in intent.extras.keySet()) {
+            Log.d("PHH-Activity", "\t$key")
+            val value = intent.extras.get(key)
+            Log.d("PHH-Activity", "\t\t=> $value")
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         rootLayout.updateViews()
+
+        Log.d("PHH-Activity", "Resume: Received intent ${intent} ${intent.extras} ${intent.extras.keySet()}")
+        for(key in intent.extras.keySet()) {
+            Log.d("PHH-Activity", "\t$key")
+            val value = intent.extras.get(key)
+            Log.d("PHH-Activity", "\t\t=> $value")
+        }
     }
 }

@@ -8,8 +8,17 @@ import android.content.Intent
 import android.media.session.MediaController
 import android.os.Bundle
 import android.os.Parcelable
+import android.util.Log
 import java.lang.ref.WeakReference
 import kotlin.math.exp
+
+fun l(s: String) {
+    android.util.Log.d("PHH-UX", s)
+}
+
+fun l(s: String, t: Throwable) {
+    android.util.Log.d("PHH-UX", s, t)
+}
 
 data class Person(val nick: String, val uri: String?)
 data class Message(val msg: String, val me: Boolean)
@@ -40,6 +49,7 @@ object Discussions {
     }
     val map = mutableMapOf<DiscussionId, Discussion>()
     fun merge(did: DiscussionId, d: Discussion) {
+        Log.d("PHH-Threads", "Received discussion ${d.persons.firstOrNull()} ${d.messages.joinToString("\n") { (if(it.me) "\t> " else "\t< ") + it.msg }}")
         map[did] = d
         for(l in listeners) {
             l.onUpdated(did)

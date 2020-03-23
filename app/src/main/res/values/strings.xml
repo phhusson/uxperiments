@@ -16,13 +16,5 @@
 -->
 
 <resources>
-    <string name="app_name">Basic unittest sample</string>
-    <string name="name_label">Your name:</string>
-    <string name="dob_label">Your date of birth:</string>
-    <string name="email_label">Your Email address:</string>
-    <string name="settings_title">My Settings</string>
-    <string name="save">Save</string>
-    <string name="revert">Revert</string>
-    <string name="name_hint">Enter your name</string>
-    <string name="email_hint">Enter your Email</string>
+    <string name="app_name">UXPeriments</string>
 </resources>
