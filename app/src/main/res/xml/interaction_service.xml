@@ -1,0 +1,6 @@
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="me.phh.uxperiments.MainInteractionSessionService"
+    android:recognitionService="me.phh.uxperiments.MainRecognitionService"
+    android:settingsActivity="me.phh.uxperiments.MainActivity"
+    android:supportsAssist="true" 
+    android:supportsLocalInteraction="true" />
