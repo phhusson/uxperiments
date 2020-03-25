@@ -46,9 +46,10 @@ data class DiscussionId(val pkgName: String, val person: Person) {
 
 object Discussions {
     interface Listener {
-        fun onUpdated(did: DiscussionId)
+        fun onUpdated(did: DiscussionId?)
     }
     val map = mutableMapOf<DiscussionId, Discussion>()
+    val allNotifications = mutableSetOf<Notification>()
 
     //Returns whether discussion has changed
     fun merge(did: DiscussionId, d: Discussion): Boolean {
@@ -71,16 +72,14 @@ object Discussions {
         listeners.remove(l)
     }
 
-    const val PKG_GMAIL = "com.google.android.gm"
-    const val PKG_WHATSAPP = "com.whatsapp"
     var ctxt: WeakReference<Context>? = null
 
     fun l(s: String) {
-        android.util.Log.d("PHH-UX", s)
+        Log.d("PHH-UX", s)
     }
 
     fun l(s: String, t: Throwable) {
-        android.util.Log.d("PHH-UX", s, t)
+        Log.d("PHH-UX", s, t)
     }
     fun dumpPerson(p: android.app.Person) {
         l("Person")
@@ -298,6 +297,10 @@ object Discussions {
     }
 
     fun handleNotification(pkgName: String, n: Notification) {
+        allNotifications.add(n)
+        for(l in listeners) {
+            l.onUpdated(null)
+        }
         if(n.extras?.get("android.mediaSession") != null) onMediaNotification(pkgName, n)
         when(pkgName) {
             "com.whatsapp", "org.telegram.messenger",
@@ -328,7 +331,24 @@ object Discussions {
         l("\tExtras:")
         val extras = n.extras ?: Bundle()
         for(key in extras.keySet()) {
-            l("\t\t- ${key} => ${extras.get(key)}")
+            val v = extras.get(key)
+            l("\t\t- ${key} => $v")
+            if(v is Array<*>) {
+                for(i in 0 until v.size) {
+                    l("\t\t\t[$i] ${v[i]}")
+                }
+            }
+            if(v is Bundle) {
+                for(k in v.keySet()) {
+                    val v2 = v[k]
+                    l("\t\t\t$k $v2}")
+                    if(v2 is Bundle) {
+                        for(k2 in v2.keySet()) {
+                            l("\t\t\t\t$k2 ${v2[k2]}")
+                        }
+                    }
+                }
+            }
         }
 
         val peoples = extras?.get("android.people.list")
