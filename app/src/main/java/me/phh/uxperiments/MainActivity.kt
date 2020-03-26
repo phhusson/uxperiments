@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Space
 import android.widget.TextView
+import java.lang.Exception
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,7 +103,10 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
                                     }
                     )
                 }*/
-                for(notification in Discussions.allNotifications) {
+                val notifs = try {
+                    NotificationService.me!!.get()!!.getActiveNotifications()!!.map { it.notification }
+                } catch(e: Exception) {  Discussions.allNotifications }
+                for(notification in notifs) {
                     if( (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) continue
 
                     val icon =  notification.getLargeIcon() ?: notification.smallIcon

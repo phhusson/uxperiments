@@ -28,6 +28,7 @@ import android.view.WindowManager
 import java.lang.ref.WeakReference
 
 import java.io.File
+import java.util.*
 
 class Accessibility : AccessibilityService() {
     companion object {
@@ -147,11 +148,13 @@ class Accessibility : AccessibilityService() {
             browse(e.source)
         }
         if(e.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            /*
             if(e.parcelableData == null) return
             val notification = e.parcelableData as Notification
             //l("\tContent Intent:")
             //sendPhhAnswer(e.packageName.toString(), notification)
             Discussions.handleNotification(e.packageName.toString(), notification)
+            */
         }
     }
 
@@ -162,50 +165,8 @@ class Accessibility : AccessibilityService() {
 
 class NotificationService : NotificationListenerService() {
     companion object {
-        val popupParams = WindowManager.LayoutParams().apply {
-            width = WindowManager.LayoutParams.MATCH_PARENT
-            height = WindowManager.LayoutParams.WRAP_CONTENT
-            flags =
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-
-            type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
-            gravity = Gravity.BOTTOM
-            title = "phh-ux-overlay"
-        }
-        var inited = false
-        var initing = true
+        var me: WeakReference<NotificationService>? = null
     }
-
-    lateinit var rootLayout : Bar
-    lateinit var wm: WindowManager
-    fun initBar() {
-        l("Adding phh-ux view plane ${inited}")
-        if(inited) return
-
-        wm = getSystemService(WindowManager::class.java)!!
-        inited = true
-
-        rootLayout = Bar(this, includePopup = false)
-
-        val params = WindowManager.LayoutParams()
-        params.width = WindowManager.LayoutParams.MATCH_PARENT
-        params.height = WindowManager.LayoutParams.WRAP_CONTENT
-        params.flags =
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-
-        params.type = 2024 /* TYPE_NAVIGATION_BAR_PANEL */
-
-        params.gravity = Gravity.BOTTOM
-        params.title = "phh-ux"
-
-        wm.addView(rootLayout, params)
-
-        popupParams.y = rootLayout.barHeight
-        wm.addView(rootLayout.popupContainer, popupParams)
-    }
-
     override fun onCreate() {
         super.onCreate()
         try {
@@ -217,28 +178,23 @@ class NotificationService : NotificationListenerService() {
     override fun onListenerConnected() {
         Accessibility.ctxt = WeakReference(this)
         l("onListenerConnected")
-        initBar()
         //requestListenerHints(HINT_HOST_DISABLE_NOTIFICATION_EFFECTS)
 
-        // Retrieve notifications that are already displayed
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.getActiveNotifications() // Useless call, so that NotificationManager fetches sService
-        val serviceField = NotificationManager::class.java.getDeclaredField("sService")
-        serviceField.isAccessible = true
-        val nms = serviceField.get(nm)
-        val getActiveNotifications = nms.javaClass.getMethod("getActiveNotifications", String::class.java)
+        me = WeakReference(this)
+        val notifs = getActiveNotifications()
 
-        val notifs = getActiveNotifications.invoke(nms, packageName) as Array<*>
         l("Got notifs $notifs ${notifs.size}")
         for(notif in notifs) {
             onNotificationPosted(notif as StatusBarNotification, null)
         }
-        initing = false
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap?) {
         val pkg = sbn.packageName
         val notification = sbn.notification
-        Discussions.handleNotification(pkg, notification)
+        //Discussions.handleNotification(pkg, notification)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
     }
 }
