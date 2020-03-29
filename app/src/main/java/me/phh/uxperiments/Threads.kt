@@ -30,7 +30,7 @@ data class Message(val msg: String, val me: Boolean)
 
 class Discussion {
     var isGroup = false
-    var persons = listOf<Person>()
+    var persons = setOf<Person>()
     var messages = listOf<Message>()
 
     var replyAction: Notification.Action? = null
@@ -41,7 +41,7 @@ class Discussion {
 
 @Serializable
 data class DiscussionId(val pkgName: String, val person: Person) {
-    constructor(pkgName: String, d: Discussion) : this(pkgName, d.persons[0])
+    constructor(pkgName: String, d: Discussion) : this(pkgName, d.persons.first())
 }
 
 object Discussions {
@@ -54,9 +54,27 @@ object Discussions {
     //Returns whether discussion has changed
     fun merge(did: DiscussionId, d: Discussion): Boolean {
         if(d == map[did]) return false
-        Log.d("PHH-Threads", "Received discussion ${d.persons.firstOrNull()} ${d.messages.joinToString("\n") { (if(it.me) "\t> " else "\t< ") + it.msg }}")
+        Log.d("PHH-Threads", "Received discussion ${did} ${d.messages.joinToString("\n") { (if(it.me) "\t> " else "\t< ") + it.msg }}")
 
-        map[did] = d
+        //map[did] = d
+        if(map.contains(did)) {
+            val modD = map[did]!!
+            val persons = modD.persons.toMutableSet()
+            for(p in d.persons) {
+                persons.add(p)
+            }
+            modD.persons = persons
+            if(d.replyAction != null) modD.replyAction = d.replyAction
+            if(d.contentIntent != null) modD.contentIntent = d.contentIntent
+            if(d.deleteIntent != null) modD.deleteIntent = d.deleteIntent
+            if(d.actions.isNotEmpty()) modD.actions = d.actions
+            if(modD.messages.isNotEmpty()) {
+                val lastMessage = modD.messages.last().msg
+
+            }
+        } else {
+            map[did] = d
+        }
         for(l in listeners) {
             l.onUpdated(did)
         }
@@ -132,7 +150,7 @@ object Discussions {
         l("Got $uri/$nick : ${messages.joinToString(", ")}")
 
         if(nick == null) return
-        val p = listOf(
+        val p = setOf(
                 Person(
                         uri = uri,
                         nick = nick.trim()
@@ -227,6 +245,7 @@ object Discussions {
                                     uri = it.uri
                             )
                         }
+                        .toSet()
 
         val d = Discussion()
         d.isGroup = false
@@ -269,6 +288,7 @@ object Discussions {
                             uri = null
                     )
                 }
+                .toSet()
 
         l("Got $uniqueId : ${messages.joinToString(", ")}")
 
@@ -301,7 +321,7 @@ object Discussions {
         val d = Discussion()
         d.isGroup = false
         d.messages = messages.split("\n").toList().map { Message(it, false) }
-        d.persons = emptyList()
+        d.persons = emptySet()
         d.replyAction = replyAction
 
         val did = DiscussionId("com.android.messaging", Person(nick = phoneNumber.toString().trim(), uri = null))
@@ -348,7 +368,7 @@ object Discussions {
         val d = Discussion()
         d.isGroup = false
         d.messages = listOf(Message(formatedMail, false))
-        d.persons = emptyList()
+        d.persons = emptySet()
 
         val did = DiscussionId(pkgName, Person(nick = threadTitle.toString().trim(), uri = null))
         d.contentIntent = n.contentIntent

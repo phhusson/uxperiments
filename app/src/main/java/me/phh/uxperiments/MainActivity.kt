@@ -15,14 +15,13 @@ import android.os.Parcelable
 import android.service.voice.VoiceInteractionSession
 import android.text.Layout
 import android.util.Log
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Space
 import android.widget.TextView
 import java.lang.Exception
+import java.util.ArrayList
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,10 +94,11 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
                         LinearLayout(this@MainInteractionSessionService).apply {
                             orientation = LinearLayout.VERTICAL
                             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 2.0f)
-                            val notifs = NotificationService.me!!.get()!!.getActiveNotifications()!!.map { it.notification }
+                            val notifs = NotificationService.me!!.get()!!.getActiveNotifications()!!
 
-                            for (notification in notifs) {
-                                if ((notification.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT)) != 0) continue
+                            for (n in notifs) {
+                                val notification = n.notification
+                                if ((notification.flags and (Notification.FLAG_GROUP_SUMMARY/* or Notification.FLAG_ONGOING_EVENT*/)) != 0) continue
 
                                 val notifiationIcon = notification.getLargeIcon()
                                         ?: notification.smallIcon
@@ -123,9 +123,6 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
                                                 ?.filterNotNull()
                                                 ?.firstOrNull()
 
-                                /* This is my own style, not remote style
-                    val messagingStyle = notification.extras.get("android.messagingStyleUser") as? Bundle
-                     */
                                 val messagingUser = notification.extras.get("android.messagingUser") as? android.app.Person
                                 if (messagingUser != null) Discussions.dumpPerson(messagingUser)
 
@@ -145,10 +142,55 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
                                     Discussions.handleNotification("bite", notification)
                                 }
 
-                                val icon = messagingPersonIcon ?: peopleIcon ?: extraIcon
-                                ?: notifiationIcon
+                                val icon = messagingPersonIcon ?: peopleIcon ?: extraIcon ?: notifiationIcon
                                 if (icon != null) addView(
-                                        LinearLayout(this@MainInteractionSessionService).apply {
+                                        object: LinearLayout(this@MainInteractionSessionService) {
+                                            override fun getTouchables(): ArrayList<View> {
+                                                return super.getTouchables()
+                                            }
+                                        }.apply {
+                                            val gestureDetector = GestureDetector(this@MainInteractionSessionService, object: GestureDetector.SimpleOnGestureListener() {
+                                                override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
+                                                    l("Swing $velocityX $velocityY")
+                                                    //Horizontal swing
+                                                    if(velocityY == 0.0f || velocityX / velocityY > 3) {
+                                                        if(velocityX > 3000) {
+                                                            l("Canceling notification")
+                                                            NotificationService.me!!.get()!!.cancelNotification(n.key)
+                                                            return true
+                                                        }
+                                                    }
+                                                    return false
+                                                }
+                                            })
+                                            gestureDetector.setOnDoubleTapListener(object: GestureDetector.OnDoubleTapListener {
+                                                override fun onDoubleTap(e: MotionEvent?): Boolean {
+                                                    l("received double tap")
+                                                    NotificationService.me!!.get()!!.cancelNotification(n.key)
+                                                    hide()
+                                                    notification.contentIntent.send()
+                                                    return true
+                                                }
+
+                                                override fun onDoubleTapEvent(e: MotionEvent?): Boolean {
+                                                    l("received double tap event")
+                                                    return true
+                                                }
+
+                                                override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
+                                                    l("received single tap confirmed")
+                                                    return true
+                                                }
+                                            })
+
+                                            setOnTouchListener {
+                                                _, event ->
+                                                l("Received touch event $event")
+                                                val r = gestureDetector.onTouchEvent(event)
+                                                l("\t returned $r")
+                                                true
+                                            }
+
                                             setBackgroundColor(Color.BLACK)
                                             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 192).apply {
                                                 gravity = Gravity.LEFT
@@ -157,15 +199,6 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
                                                 layoutParams = ViewGroup.LayoutParams(192, LinearLayout.LayoutParams.MATCH_PARENT).also {
                                                     gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
                                                 }
-
-                                                /*
-                                            when {
-                                        //TODO: Generate icon based on Person
-                                        messagingPersonIcon != null -> setImageIcon(messagingPersonIcon)
-                                        peopleIcon != null -> setImageIcon(peopleIcon)
-                                        extraIcon != null -> setImageIcon(extraIcon)
-                                        else -> setImageIcon(notificationIcon)
-                                    }*/
                                                 setImageIcon(icon)
                                             })
                                             addView(TextView(this@MainInteractionSessionService).apply {

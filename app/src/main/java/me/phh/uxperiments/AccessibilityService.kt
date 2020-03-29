@@ -43,11 +43,21 @@ class Accessibility : AccessibilityService() {
         val bounds = Rect()
         w.getBoundsInScreen(bounds)
         l("${t}${w.className}; ${w.contentDescription} (${w.childCount}), ${w.viewIdResourceName}, ${w.windowId} ${bounds.top}x${bounds.left}-${bounds.bottom}x${bounds.right}:")
-        if(w.text != null) l("${w.text}")
+        for(e in w.availableExtraData) {
+            l("${t} - extra $e")
+        }
+
+        if(w.error != null) l("${t} - error: ${w.error}")
+        if(w.paneTitle != null) l("${t} - pane title: ${w.paneTitle}")
+        if(w.rangeInfo != null) l("${t} - range info: ${w.rangeInfo}")
+        if(w.tooltipText != null) l("${t} - tooltip: ${w.tooltipText}")
+        if(w.viewIdResourceName != null) l("${t} - viewid resource name: ${w.viewIdResourceName}")
+
         val extras = w.extras ?: Bundle()
         for(key in extras.keySet()) {
-            l("${t} - $key ${extras.get("key")}")
+            l("${t} - extra bundle $key ${extras.get("key")}")
         }
+        if(w.text != null) l("${w.text}")
         for(i in 0 until w.childCount) {
             val child = w.getChild(i)
             if(child != null)
@@ -109,26 +119,37 @@ class Accessibility : AccessibilityService() {
         }
 
         val messages =
+                //TODO: XXX language-dependant
                 chatNode
                         .children()
                         .map { it.text ?: it.contentDescription }
                         .filterNotNull()
-                        .map {
+                        .mapNotNull {
                             //TODO: XXX language-dependant
                             val me = it.contains("Sent")
 
                             val lines = it.split("\n")
-                            val msgLines = lines.take(lines.size-1)
-
-                            Message(
-                                    msg = msgLines.joinToString("\n"),
-                                    me = me)
+                            val senderDropped = if (isGroup) lines.drop(1) else lines
+                            if (senderDropped.size > 0) {
+                                val msgLines = senderDropped.take(senderDropped.size - 1)
+                                Message(
+                                        msg = msgLines.joinToString("\n"),
+                                        me = me)
+                            } else {
+                                null
+                            }
                         }
 
+        val p = Person(nick, null)
         val d = Discussion()
-        d.persons = listOf(Person(nick, null))
+        d.persons = setOf(p)
         d.messages = messages
         d.isGroup = isGroup
+
+        val did = DiscussionId(e.packageName.toString(), p)
+        if(Discussions.map.contains(did)) {
+
+        }
 
         Discussions.merge(
                 DiscussionId(e.packageName.toString(), d),
@@ -136,7 +157,7 @@ class Accessibility : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
-        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3" || true) return
+        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3") return
 
         onTelegramAccessibility(e)
         l("Got event ${e.getEventType()}")
