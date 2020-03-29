@@ -5,15 +5,15 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
+import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
-import kotlin.math.exp
 import kotlinx.serialization.Serializable
 import java.io.File
 import java.lang.ref.WeakReference
-import kotlin.math.exp
 
 fun l(s: String) {
     android.util.Log.d("PHH-UX", s)
@@ -49,7 +49,7 @@ object Discussions {
         fun onUpdated(did: DiscussionId?)
     }
     val map = mutableMapOf<DiscussionId, Discussion>()
-    val allNotifications = mutableSetOf<Notification>()
+    val icons = mutableMapOf<Person,Icon>()
 
     //Returns whether discussion has changed
     fun merge(did: DiscussionId, d: Discussion): Boolean {
@@ -71,6 +71,11 @@ object Discussions {
     fun unregisterListener(l: Listener) {
         listeners.remove(l)
     }
+    fun refresh() {
+        for(l in listeners) {
+            l.onUpdated(null)
+        }
+    }
 
     var ctxt: WeakReference<Context>? = null
 
@@ -87,21 +92,23 @@ object Discussions {
         l("\t- name: ${p.name}")
         l("\t- uri: ${p.uri}")
         l("\t- bot: ${p.isBot()}")
+        l("\t- icon: ${p.icon}")
         l("\t- important: ${p.isImportant()}")
     }
 
     fun onSimpleMessageNotification(pkgName: String, n: Notification, givenUri: String? = null, givenNick: String? = null) {
         // Direct private message
-        val peopleList =
+        val firstPeople =
                 ((n.extras?.get("android.people.list")) as? java.util.ArrayList<*>)
-                        ?.map { it as android.app.Person}
+                        ?.map { it as android.app.Person }
+                        ?.firstOrNull()
 
         var uri: String? = givenUri
         var nick: String? = givenNick
 
-        if(peopleList != null) {
-            uri = peopleList.firstOrNull()?.uri
-            if(uri == null) uri = peopleList.firstOrNull()?.key
+        if(firstPeople != null) {
+            uri = firstPeople.uri
+            if(uri == null) uri = firstPeople.key
         }
 
         val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
@@ -130,6 +137,10 @@ object Discussions {
                         uri = uri,
                         nick = nick.trim()
                 ))
+        if(senderPerson != null && senderPerson.icon != null) {
+            l("Setting icon for ${p.first()} to ${senderPerson.icon}")
+            icons[p.first()] = senderPerson.icon!!
+        }
         val actions = n.actions ?: emptyArray()
         var replyAction = actions.find { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY}
         if(replyAction == null) {
@@ -170,9 +181,9 @@ object Discussions {
     }
 
     fun onSimpleGroupNotification(pkgName: String, n: Notification) {
-        val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES) ?: return
+        val messagesBundleArray = n.extras.get(Notification.EXTRA_MESSAGES)
         val messagesBundle =
-                java.util.Arrays.asList(*messagesBundleArray as Array<Parcelable>).map { it as Bundle }
+                listOf(*messagesBundleArray as Array<*>).map { it as Bundle }
 
         var uniqueId = n.extras.get("android.hiddenConversationTitle") as? CharSequence
         if(uniqueId == null) uniqueId = n.extras.get("android.conversationTitle") as? CharSequence
@@ -184,6 +195,12 @@ object Discussions {
             }
         }
 
+        if(pkgName == "org.telegram.messenger") {
+            val wearable = n.extras.get("android.wearable.EXTENSIONS") as? Bundle
+            val dismissId = wearable?.get("dismissalId") as? CharSequence
+            //tgchat371627062_74795
+        }
+
         val messages = messagesBundle.map {
             Message(
                     (it.get("text") as java.lang.CharSequence).toString(),
@@ -192,21 +209,89 @@ object Discussions {
         }
         l("Got $uniqueId : ${messages.joinToString(", ")}")
 
+        val personId = Person(nick = uniqueId.toString().trim(), uri = null)
         val replyAction = getReplyAction(n)
+        val senderPersons = messagesBundle.map { (it.get("sender_person") as? android.app.Person)}.filterNotNull()
+        val senderPerson = senderPersons.firstOrNull()
+        if(senderPerson != null && senderPerson.icon != null) {
+            l("Setting icon for ${personId} to ${senderPerson.icon}")
+            icons[personId] = senderPerson.icon!!
+        }
+
+        val persons =
+                senderPersons
+                        .toSet()
+                        .map {
+                            Person(
+                                    nick = it.name.toString(),
+                                    uri = it.uri
+                            )
+                        }
 
         val d = Discussion()
         d.isGroup = false
         d.messages = messages
-        d.persons = emptyList()
+        d.persons = persons
         d.replyAction = replyAction
         d.contentIntent = n.contentIntent
         d.deleteIntent = n.deleteIntent
         if(n.actions != null)
             d.actions = n.actions.toList()
 
+        val did = DiscussionId(pkgName, personId)
+        merge(did, d)
+    }
+
+    val facebookParseLine = Regex("(.*) : (.*)")
+    fun onFacebookGroupNotification(pkgName: String, n: Notification) {
+        val textLines = (n.extras.get(Notification.EXTRA_TEXT_LINES) as? Array<*>) ?: return
+        var uniqueId = (n.extras.get("android.title.big") as? CharSequence) ?: return
+
+        val parsedLines = textLines
+                        .map { it as? CharSequence }
+                        .filterNotNull()
+                        .map { facebookParseLine.find(it) }
+                        .filterNotNull()
+        val messages = parsedLines
+                .map {
+                    Message(
+                            msg = it.groupValues[2],
+                            me = false
+                    )
+                }
+
+        val persons = parsedLines
+                .map { it.groupValues[1]}
+                .toSet()
+                .map {
+                    Person(
+                            nick = it,
+                            uri = null
+                    )
+                }
+
+        l("Got $uniqueId : ${messages.joinToString(", ")}")
+
+        val replyAction = getReplyAction(n)
+
+        val d = Discussion()
+        d.isGroup = false
+        d.messages = messages
+        d.persons = persons
+        d.replyAction = replyAction
+        d.contentIntent = n.contentIntent
+        d.deleteIntent = n.deleteIntent
+        if(n.actions != null)
+            d.actions = n.actions.toList()
+
+        val icon = n.extras.get("android.largeIcon") as? Icon
+        if(icon != null) {
+            icons[Person(nick = uniqueId.toString(), uri = null)] = icon
+        }
         val did = DiscussionId(pkgName, Person(nick = uniqueId.toString().trim(), uri = null))
         merge(did, d)
     }
+
 
     fun onSmsNotification(n: Notification) {
         val phoneNumber = n.extras.get("android.title") as? CharSequence ?: return
@@ -287,26 +372,24 @@ object Discussions {
         for(key in e.keySet()) {
             l("\t- ${key} => ${e.get(key)}")
         }
-        /*mediaController.registerCallback(object: MediaController.Callback() {
+        mediaController.registerCallback(object: MediaController.Callback() {
             override fun onMetadataChanged(metadata: MediaMetadata) {
+                refresh()
                 val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
                 val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 l("Got new $title $artist")
             }
-        })*/
+        })
     }
 
     fun handleNotification(pkgName: String, n: Notification) {
-        allNotifications.add(n)
-        for(l in listeners) {
-            l.onUpdated(null)
-        }
         if(n.extras?.get("android.mediaSession") != null) onMediaNotification(pkgName, n)
         when(pkgName) {
             "com.whatsapp", "org.telegram.messenger",
                 "com.iskrembilen.quasseldroid", "com.google.android.apps.messaging" -> onGenericNotification(pkgName, n, supportGroups =  true)
             "com.android.messaging" -> onSmsNotification(n)
             "com.google.android.gm" -> onGmailNotification(pkgName, n)
+            "com.facebook.mlite" -> onFacebookGroupNotification(pkgName, n)
         }
 
         l("Got notification $n from $pkgName ${n.smallIcon} ${n.getLargeIcon()}")
@@ -317,7 +400,7 @@ object Discussions {
         val actions = n.actions ?: emptyArray()
         l("\tActions:")
         for(action in actions) {
-            l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs} ${action.title}")
+            l("\t\taction = ${action.semanticAction} ${action.actionIntent} ${action.remoteInputs} ${action.title} ${action.icon}")
             val inputs = action.remoteInputs ?: emptyArray()
             for(input in inputs) {
                 l("\t\t\t${input}")
@@ -348,6 +431,9 @@ object Discussions {
                         }
                     }
                 }
+            }
+            if(v is android.app.Person) {
+                dumpPerson(v)
             }
         }
 
@@ -409,7 +495,7 @@ object Discussions {
         }
         val messages = extras?.get("android.messages")
         if(messages != null) {
-            for(message in messages as Array<Parcelable>) {
+            for(message in messages as Array<*>) {
                 l("Got message $message")
                 if(message is Bundle) {
                     for(key in message.keySet()) {
@@ -420,20 +506,6 @@ object Discussions {
                         dumpPerson(senderPerson)
                     }
                 }
-            }
-        }
-
-        val person = extras?.get("android.messagingUser")
-        l("Got person $person")
-        if(person is android.app.Person) {
-            dumpPerson(person)
-        }
-
-        val textLines = extras?.get("android.textLines")
-        if(textLines != null) {
-            l("Got lines")
-            for(line in textLines as Array<java.lang.CharSequence>) {
-                l("\t${line}")
             }
         }
     }

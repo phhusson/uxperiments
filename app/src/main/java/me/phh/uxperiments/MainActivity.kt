@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.Parcelable
 import android.service.voice.VoiceInteractionSession
+import android.text.Layout
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -80,89 +81,140 @@ class MainInteractionSessionService: android.service.voice.VoiceInteractionSessi
     override fun onNewSession(args: Bundle?): VoiceInteractionSession {
         return object : VoiceInteractionSession(this) {
             val discussionsContainer = LinearLayout(this@MainInteractionSessionService).apply {
-                orientation = LinearLayout.VERTICAL
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.TOP
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        .apply {
-                            gravity = Gravity.BOTTOM
-                        }
                 setBackgroundColor(Color.parseColor("#AA113322"))
             }
 
             fun refresh() {
                 discussionsContainer.removeAllViews()
 
-                /*
-                for(did in Discussions.map.keys) {
-                    val p = did.person
-                    discussionsContainer.addView(
-                            TextView(this@MainInteractionSessionService)
-                                    .apply {
-                                        text = p.nick
-                                        setBackgroundColor(Color.parseColor("#FFFFFFFF"))
-                                        textSize = 16.0f
-                                    }
-                    )
-                }*/
-                val notifs = try {
-                    NotificationService.me!!.get()!!.getActiveNotifications()!!.map { it.notification }
-                } catch(e: Exception) {  Discussions.allNotifications }
-                for(notification in notifs) {
-                    if( (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) continue
+                //Now we show all notifications
+                discussionsContainer.addView(
+                        LinearLayout(this@MainInteractionSessionService).apply {
+                            orientation = LinearLayout.VERTICAL
+                            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 2.0f)
+                            val notifs = NotificationService.me!!.get()!!.getActiveNotifications()!!.map { it.notification }
 
-                    val icon =  notification.getLargeIcon() ?: notification.smallIcon
+                            for (notification in notifs) {
+                                if ((notification.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT)) != 0) continue
 
-                    val extraIcon = notification.extras.get("android.largeIcon") as? Icon
+                                val notifiationIcon = notification.getLargeIcon()
+                                        ?: notification.smallIcon
+                                val extraIcon = notification.extras.get("android.largeIcon") as? Icon
 
-                    val peopleIcon =
-                            (notification.extras.get("android.people.list") as? List<*>)
-                                    ?.map { it as? android.app.Person }
-                                    ?.filterNotNull()
-                                    ?.map { it.icon }
-                                    ?.filterNotNull()
-                                    ?.firstOrNull()
+                                val peopleIcon =
+                                        (notification.extras.get("android.people.list") as? List<*>)
+                                                ?.map { it as? android.app.Person }
+                                                ?.filterNotNull()
+                                                ?.map { it.icon }
+                                                ?.filterNotNull()
+                                                ?.firstOrNull()
 
 
-                    /* This is my own style, not remote style
+                                val messagingPersonIcon =
+                                        (notification.extras.get("android.messages") as? Array<*>)
+                                                ?.map { it as? Bundle }
+                                                ?.filterNotNull()
+                                                ?.map { it.get("sender_person") as? android.app.Person }
+                                                ?.filterNotNull()
+                                                ?.map { it.icon }
+                                                ?.filterNotNull()
+                                                ?.firstOrNull()
+
+                                /* This is my own style, not remote style
                     val messagingStyle = notification.extras.get("android.messagingStyleUser") as? Bundle
                      */
+                                val messagingUser = notification.extras.get("android.messagingUser") as? android.app.Person
+                                if (messagingUser != null) Discussions.dumpPerson(messagingUser)
 
-                    val messages =
-                            (notification.extras.get("android.messages") as? Array<*>)
-                                    ?.map { it as? Bundle }
-                                    ?.filterNotNull()
-                                    ?.map { it.get("text") as? CharSequence }
-                                    ?.filterNotNull()
-                                    ?.joinToString("\n")
-                    val bigText = notification.extras.get("android.bigText") as? CharSequence
-                    val title = notification.extras.get("android.title") as? CharSequence
-                    val text = notification.extras.get("android.text") as? CharSequence
-                    val madeText = if(title  != null && text != null) "$title\n$text" else null
+                                val messages =
+                                        (notification.extras.get("android.messages") as? Array<*>)
+                                                ?.map { it as? Bundle }
+                                                ?.filterNotNull()
+                                                ?.map { it.get("text") as? CharSequence }
+                                                ?.filterNotNull()
+                                                ?.joinToString("\n")
+                                val bigText = notification.extras.get("android.bigText") as? CharSequence
+                                val title = notification.extras.get("android.title") as? CharSequence
+                                val text = notification.extras.get("android.text") as? CharSequence
+                                val madeText = if (title != null && text != null) "$title\n$text" else null
 
-                    discussionsContainer.addView(
-                            LinearLayout(this@MainInteractionSessionService).apply {
-                                setBackgroundColor(Color.BLACK)
-                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 192).apply {
-                                    gravity = Gravity.LEFT
+                                if (messages != null && messages.contains("test")) {
+                                    Discussions.handleNotification("bite", notification)
                                 }
-                                addView(ImageView(this@MainInteractionSessionService).apply {
-                                    layoutParams = ViewGroup.LayoutParams(192, LinearLayout.LayoutParams.MATCH_PARENT).also {
-                                        gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
-                                    }
-                                    if(peopleIcon != null) {
-                                        setImageIcon(peopleIcon)
-                                    }   else if(extraIcon != null) {
-                                        setImageIcon(extraIcon)
-                                    } else {
-                                        setImageIcon(icon)
-                                    }
-                                })
-                                addView(TextView(this@MainInteractionSessionService).apply {
-                                    textSize = 20.0f
-                                    setText(messages ?: bigText ?: madeText ?: notification.tickerText)
-                                    setTextColor(Color.parseColor("#FFDDDDDD"))
-                                })
+
+                                val icon = messagingPersonIcon ?: peopleIcon ?: extraIcon
+                                ?: notifiationIcon
+                                if (icon != null) addView(
+                                        LinearLayout(this@MainInteractionSessionService).apply {
+                                            setBackgroundColor(Color.BLACK)
+                                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 192).apply {
+                                                gravity = Gravity.LEFT
+                                            }
+                                            addView(ImageView(this@MainInteractionSessionService).apply {
+                                                layoutParams = ViewGroup.LayoutParams(192, LinearLayout.LayoutParams.MATCH_PARENT).also {
+                                                    gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
+                                                }
+
+                                                /*
+                                            when {
+                                        //TODO: Generate icon based on Person
+                                        messagingPersonIcon != null -> setImageIcon(messagingPersonIcon)
+                                        peopleIcon != null -> setImageIcon(peopleIcon)
+                                        extraIcon != null -> setImageIcon(extraIcon)
+                                        else -> setImageIcon(notificationIcon)
+                                    }*/
+                                                setImageIcon(icon)
+                                            })
+                                            addView(TextView(this@MainInteractionSessionService).apply {
+                                                textSize = 20.0f
+                                                setText(messages ?: bigText ?: madeText ?: title
+                                                ?: notification.tickerText)
+                                                setTextColor(Color.parseColor("#FFDDDDDD"))
+                                            })
+                                        })
+                            }
+                        })
+
+                // This is the column listing all current discussions
+                discussionsContainer.addView(
+                        LinearLayout(this@MainInteractionSessionService).apply {
+                            orientation = LinearLayout.VERTICAL
+                            layoutParams = LinearLayout.LayoutParams(192, LinearLayout.LayoutParams.MATCH_PARENT).also {
+                                gravity = Gravity.TOP
+                            }
+                            gravity = Gravity.TOP
+
+
+                            for( (did, d) in Discussions.map) {
+                                //Can't handle groups because of no icons
+                                val personIcon =
+                                        d.persons
+                                                .map { Discussions.icons[it] }
+                                                .filterNotNull()
+                                                .firstOrNull()
+
+                                val groupIcon = Discussions.icons[did.person]
+
+                                val icon = personIcon ?: groupIcon ?: continue
+
+                                addView(
+                                        ImageView(this@MainInteractionSessionService).apply {
+                                            layoutParams = ViewGroup.LayoutParams(192, 192).also {
+                                                gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
+                                            }
+                                            setImageIcon(icon)
+                                            setBackgroundColor(Color.parseColor("#aaf81894"))
+                                        }
+                                )
+                            }
+                            addView(View(this@MainInteractionSessionService).apply {
+                                setBackgroundColor(Color.TRANSPARENT)
                             })
-                }
+                        }
+                )
             }
 
             init {

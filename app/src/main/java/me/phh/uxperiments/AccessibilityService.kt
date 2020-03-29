@@ -5,15 +5,12 @@ import android.service.notification.StatusBarNotification
 
 import android.graphics.SurfaceTexture
 
-import android.app.ActivityOptions
-import android.app.Notification
-import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
-
 import android.accessibilityservice.AccessibilityService
-import android.app.NotificationManager
+import android.app.*
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -21,6 +18,8 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.hardware.display.DisplayManager
 
 import android.hardware.display.VirtualDisplay
+import android.net.Uri
+import android.os.*
 import android.view.Gravity
 
 import android.view.Surface
@@ -137,7 +136,7 @@ class Accessibility : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
-        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3") return
+        if(e.packageName == "com.android.systemui" || e.packageName == "com.android.launcher3" || true) return
 
         onTelegramAccessibility(e)
         l("Got event ${e.getEventType()}")
@@ -178,13 +177,9 @@ class NotificationService : NotificationListenerService() {
     override fun onListenerConnected() {
         Accessibility.ctxt = WeakReference(this)
         l("onListenerConnected")
-        //requestListenerHints(HINT_HOST_DISABLE_NOTIFICATION_EFFECTS)
 
         me = WeakReference(this)
-        val notifs = getActiveNotifications()
-
-        l("Got notifs $notifs ${notifs.size}")
-        for(notif in notifs) {
+        for(notif in activeNotifications) {
             onNotificationPosted(notif as StatusBarNotification, null)
         }
     }
@@ -192,9 +187,10 @@ class NotificationService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap?) {
         val pkg = sbn.packageName
         val notification = sbn.notification
-        //Discussions.handleNotification(pkg, notification)
+        Discussions.handleNotification(pkg, notification)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+        Discussions.refresh()
     }
 }
